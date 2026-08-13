@@ -1,5 +1,12 @@
 # Dll Bot
 
+# v1.1.2
+
+- **Add:** GDR2 (`.gdr2`) macro format — export and import support
+- **Add:** Format selector when saving macros (GDR / JSON / GDR2)
+- **Fix:** Build error on GD 2.2081 (missing `m_dashFireFrame` in `PlayerData`)
+- **Fix:** Platformer mode not saved/loaded correctly in GDR2 macros
+
 
 ## v1.0.0
 
