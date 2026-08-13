@@ -7,10 +7,24 @@ class SaveMacroLayer : public geode::Popup {
     TextInput* descInput = nullptr;
     TextInput* nameInput = nullptr;
 
-    CCMenuItemToggler* jsonToggle = nullptr;
-    CCMenuItemToggler* gdr2Toggle = nullptr;
+    // 3 format cycle qua nút bấm, thay vì 2 checkbox độc lập (dễ gây nhầm
+    // vì trạng thái "cả 2 tắt" = .gdr không có label nào hiển thị).
+    enum class Format { Gdr, GdrJson, Gdr2 };
+    Format currentFormat = Format::Gdr;
+
+    CCMenuItemSpriteExtra* formatBtn = nullptr;
+    CCLabelBMFont* formatLbl = nullptr;
 
 private:
+
+    std::string formatLabel() const {
+        switch (currentFormat) {
+            case Format::Gdr:     return "Format: GDR";
+            case Format::GdrJson: return "Format: JSON";
+            case Format::Gdr2:    return "Format: GDR2";
+        }
+        return "Format: GDR";
+    }
 
     bool setup() {
         // Utils::setBackgroundColor(m_bgSprite);
@@ -54,29 +68,12 @@ private:
         btn->setPositionY(-56);
         menu->addChild(btn);
 
-        CCSprite* spriteOn = CCSprite::createWithSpriteFrameName("GJ_checkOn_001.png");
-        CCSprite* spriteOff = CCSprite::createWithSpriteFrameName("GJ_checkOff_001.png");
-        jsonToggle = CCMenuItemToggler::create(spriteOff, spriteOn, this, menu_selector(SaveMacroLayer::onToggleJson));
-        jsonToggle->setPosition({ -124, -78 });
-        jsonToggle->setScale(0.575);
-        menu->addChild(jsonToggle);
-
-        lbl = CCLabelBMFont::create("JSON", "bigFont.fnt");
-        lbl->setPosition({ -97, -77.5 });
-        lbl->setScale(0.375);
-        menu->addChild(lbl);
-
-        // Toggle GDR2 — đặt cạnh JSON. Bật cái này thì tắt JSON và ngược lại,
-        // vì 2 format này loại trừ nhau (không thể vừa .gdr.json vừa .gdr2 cùng lúc).
-        gdr2Toggle = CCMenuItemToggler::create(spriteOff, spriteOn, this, menu_selector(SaveMacroLayer::onToggleGdr2));
-        gdr2Toggle->setPosition({ -40, -78 });
-        gdr2Toggle->setScale(0.575);
-        menu->addChild(gdr2Toggle);
-
-        lbl = CCLabelBMFont::create("GDR2", "bigFont.fnt");
-        lbl->setPosition({ -8, -77.5 });
-        lbl->setScale(0.375);
-        menu->addChild(lbl);
+        // Nút cycle format — bấm để chuyển GDR -> JSON -> GDR2 -> GDR...
+        ButtonSprite* formatSpr = ButtonSprite::create(formatLabel().c_str(), 90, true, "bigFont.fnt", "GJ_button_04.png", 0, 0.6f);
+        formatSpr->setScale(0.6f);
+        formatBtn = CCMenuItemSpriteExtra::create(formatSpr, this, menu_selector(SaveMacroLayer::onCycleFormat));
+        formatBtn->setPosition({ -83, -78 });
+        menu->addChild(formatBtn);
 
         return true;
     }
@@ -101,15 +98,18 @@ public:
         layerReal->show();
     }
 
-    // 2 toggle loại trừ nhau: bật GDR2 thì tự tắt JSON, bật JSON thì tự tắt GDR2.
-    void onToggleJson(CCObject*) {
-        if (!jsonToggle->isToggled() && gdr2Toggle->isToggled())
-            gdr2Toggle->toggle(false);
-    }
+    void onCycleFormat(CCObject*) {
+        switch (currentFormat) {
+            case Format::Gdr:     currentFormat = Format::GdrJson; break;
+            case Format::GdrJson: currentFormat = Format::Gdr2; break;
+            case Format::Gdr2:    currentFormat = Format::Gdr; break;
+        }
 
-    void onToggleGdr2(CCObject*) {
-        if (!gdr2Toggle->isToggled() && jsonToggle->isToggled())
-            jsonToggle->toggle(false);
+        // Đổi lại label trên nút để phản ánh format vừa chọn.
+        if (CCNode* label = formatBtn->getChildren()->objectAtIndex(0)) {
+            if (ButtonSprite* bs = typeinfo_cast<ButtonSprite*>(label))
+                bs->setString(formatLabel().c_str());
+        }
     }
 
     void onSave(CCObject*) {
@@ -121,9 +121,18 @@ public:
         std::string author = authorInput->getString();
         std::string desc = descInput->getString();
 
-        int result = gdr2Toggle->isToggled()
-            ? Macro::saveGDR2(author, desc, path.string())
-            : Macro::save(author, desc, path.string(), jsonToggle->isToggled());
+        int result = 0;
+        switch (currentFormat) {
+            case Format::Gdr:
+                result = Macro::save(author, desc, path.string(), false);
+                break;
+            case Format::GdrJson:
+                result = Macro::save(author, desc, path.string(), true);
+                break;
+            case Format::Gdr2:
+                result = Macro::saveGDR2(author, desc, path.string());
+                break;
+        }
 
         if (result != 0)
             return FLAlertLayer::create("Error", "There was an error saving the macro. ID: " + std::to_string(result), "Ok")->show();
