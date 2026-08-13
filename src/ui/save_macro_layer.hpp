@@ -106,8 +106,8 @@ public:
         }
 
         // Đổi lại label trên nút để phản ánh format vừa chọn.
-        if (CCNode* label = formatBtn->getChildren()->objectAtIndex(0)) {
-            if (ButtonSprite* bs = typeinfo_cast<ButtonSprite*>(label))
+        if (CCObject* obj = formatBtn->getChildren()->objectAtIndex(0)) {
+            if (ButtonSprite* bs = typeinfo_cast<ButtonSprite*>(obj))
                 bs->setString(formatLabel().c_str());
         }
     }
