@@ -8,6 +8,7 @@ class SaveMacroLayer : public geode::Popup {
     TextInput* nameInput = nullptr;
 
     CCMenuItemToggler* jsonToggle = nullptr;
+    CCMenuItemToggler* gdr2Toggle = nullptr;
 
 private:
 
@@ -55,13 +56,25 @@ private:
 
         CCSprite* spriteOn = CCSprite::createWithSpriteFrameName("GJ_checkOn_001.png");
         CCSprite* spriteOff = CCSprite::createWithSpriteFrameName("GJ_checkOff_001.png");
-        jsonToggle = CCMenuItemToggler::create(spriteOff, spriteOn, this, nullptr);
+        jsonToggle = CCMenuItemToggler::create(spriteOff, spriteOn, this, menu_selector(SaveMacroLayer::onToggleJson));
         jsonToggle->setPosition({ -124, -78 });
         jsonToggle->setScale(0.575);
         menu->addChild(jsonToggle);
 
         lbl = CCLabelBMFont::create("JSON", "bigFont.fnt");
         lbl->setPosition({ -97, -77.5 });
+        lbl->setScale(0.375);
+        menu->addChild(lbl);
+
+        // Toggle GDR2 — đặt cạnh JSON. Bật cái này thì tắt JSON và ngược lại,
+        // vì 2 format này loại trừ nhau (không thể vừa .gdr.json vừa .gdr2 cùng lúc).
+        gdr2Toggle = CCMenuItemToggler::create(spriteOff, spriteOn, this, menu_selector(SaveMacroLayer::onToggleGdr2));
+        gdr2Toggle->setPosition({ -40, -78 });
+        gdr2Toggle->setScale(0.575);
+        menu->addChild(gdr2Toggle);
+
+        lbl = CCLabelBMFont::create("GDR2", "bigFont.fnt");
+        lbl->setPosition({ -8, -77.5 });
         lbl->setScale(0.375);
         menu->addChild(lbl);
 
@@ -88,6 +101,17 @@ public:
         layerReal->show();
     }
 
+    // 2 toggle loại trừ nhau: bật GDR2 thì tự tắt JSON, bật JSON thì tự tắt GDR2.
+    void onToggleJson(CCObject*) {
+        if (!jsonToggle->isToggled() && gdr2Toggle->isToggled())
+            gdr2Toggle->toggle(false);
+    }
+
+    void onToggleGdr2(CCObject*) {
+        if (!gdr2Toggle->isToggled() && jsonToggle->isToggled())
+            jsonToggle->toggle(false);
+    }
+
     void onSave(CCObject*) {
         std::string macroName = nameInput->getString();
         if (macroName == "")
@@ -97,7 +121,9 @@ public:
         std::string author = authorInput->getString();
         std::string desc = descInput->getString();
 
-        int result = Macro::save(author, desc, path.string(), jsonToggle->isToggled());
+        int result = gdr2Toggle->isToggled()
+            ? Macro::saveGDR2(author, desc, path.string())
+            : Macro::save(author, desc, path.string(), jsonToggle->isToggled());
 
         if (result != 0)
             return FLAlertLayer::create("Error", "There was an error saving the macro. ID: " + std::to_string(result), "Ok")->show();
