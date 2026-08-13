@@ -3,6 +3,7 @@
 #include "includes.hpp"
 #include "gdr/gdr.hpp"
 #include "utils/utils.hpp"
+#include "gdr/gdr2.hpp"
 
 using namespace geode::prelude;
 
@@ -251,6 +252,7 @@ struct PlayerData {
     double m_maybeReverseAcceleration;
     float m_xVelocityRelated2;
     bool m_isDashing;
+    int m_dashFireFrame;
     int m_unk9e8;
     int m_groundObjectMaterial;
     float m_vehicleSize;
