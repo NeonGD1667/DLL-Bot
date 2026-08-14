@@ -1,4 +1,5 @@
 #include "record_layer.hpp"
+#include "rgb_effect.hpp"
 #include "../BlurAPI.hpp"
 #include "../hacks/coin_finder.hpp"
 #include "../hacks/show_trajectory.hpp"
@@ -817,6 +818,7 @@ bool RecordLayer::setup() {
   bg->setAnchorPoint({0, 1});
   bg->setContentSize({275, 151});
   menu->addChild(bg);
+  rgbBackgrounds.push_back(bg);
 
   bg = CCScale9Sprite::create("square02b_001.png", {0, 0, 80, 80});
   bg->setScale(0.7f);
@@ -826,6 +828,7 @@ bool RecordLayer::setup() {
   bg->setAnchorPoint({0, 1});
   bg->setContentSize({275, 169});
   menu->addChild(bg);
+  rgbBackgrounds.push_back(bg);
 
   bg = CCScale9Sprite::create("square02b_001.png", {0, 0, 80, 80});
   bg->setScale(0.7f);
@@ -834,6 +837,7 @@ bool RecordLayer::setup() {
   bg->setPosition(ccp(103, 2));
   bg->setContentSize({313, 339});
   menu->addChild(bg);
+  rgbBackgrounds.push_back(bg);
 
   recording = CCMenuItemToggler::create(
       spriteOff, spriteOn, this, menu_selector(RecordLayer::toggleRecording));
@@ -1166,6 +1170,20 @@ bool RecordLayer::setup() {
     g.currentPage = 0;
 
   goToSettingsPage(g.currentPage);
+
+  if (Mod::get()->getSettingValue<bool>("rgb_ui")) {
+    std::vector<cocos2d::CCNode *> rgbTargets(
+        rgbBackgrounds.begin(), rgbBackgrounds.end());
+
+    RGBEffect *fx = RGBEffect::create(
+        rgbTargets,
+        60.f,
+        0.8f,
+        0.55f
+    );
+
+    m_mainLayer->addChild(fx);
+  }
 
   CCSprite *dickordSpr =
       CCSprite::createWithSpriteFrameName("gj_discordIcon_001.png");
