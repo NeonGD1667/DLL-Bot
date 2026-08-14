@@ -625,6 +625,36 @@ void LoadMacroLayer::addList(bool refresh, float prevScroll) {
                                 4,
                             winSize.height / 2});
     scrollbar->setID("scrollbar");
-    m_buttonMenu->addChild(scrollbar);
-  }
+  m_buttonMenu->addChild(scrollbar);
+}
+
+bool rgbEnabled = Mod::get()->getSettingValue<bool>("rgb_ui");
+
+if (rgbEnabled) {
+  // Xóa RGB effect cũ nếu addList() được gọi lại
+  if (CCNode* oldFx = m_buttonMenu->getChildByID("rgb-effect"))
+    oldFx->removeFromParentAndCleanup(true);
+
+  std::vector<cocos2d::CCNode*> rgbTargets = {
+    topBorder,
+    bottomBorder,
+    leftBorder,
+    rightBorder,
+    listBackground
+  };
+
+  RGBEffect* fx = RGBEffect::create(
+    rgbTargets,
+    60.f
+  );
+
+  fx->setID("rgb-effect");
+  m_buttonMenu->addChild(fx);
+} else {
+  topBorder->setColor(color);
+  bottomBorder->setColor(color);
+  leftBorder->setColor(color);
+  rightBorder->setColor(color);
+}
+
 }
