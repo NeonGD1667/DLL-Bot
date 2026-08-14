@@ -111,6 +111,12 @@
 			"type": "color",
 			"default": "#334499"
 		},
+		"rgb_ui": {
+			"name": "RGB UI",
+			"description": "Đổi màu UI của bot theo hiệu ứng RGB cycle liên tục thay vì màu tĩnh.",
+			"type": "bool",
+			"default": false
+		},
 		"editor_keybinds": {
 			"name": "Keybinds on editor",
 			"description": "Enables keybinds while on the level editor.",
