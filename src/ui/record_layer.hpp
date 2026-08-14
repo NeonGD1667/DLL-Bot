@@ -67,6 +67,7 @@ public:
 
   std::vector<CCNode *> nodes;
   std::vector<CCSprite *> dots;
+  std::vector<cocos2d::CCScale9Sprite *> rgbBackgrounds;
 
   CCMenu *menu = nullptr;
 
