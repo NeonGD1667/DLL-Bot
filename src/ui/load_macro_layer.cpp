@@ -1,6 +1,7 @@
 #include "load_macro_layer.hpp"
 #include "autosave_settings_layer.hpp"
 #include "macro_editor.hpp"
+#include "rgb_effect.hpp"
 
 #ifdef _MSC_VER
 #pragma optimize("", off)
