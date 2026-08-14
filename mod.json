@@ -113,7 +113,7 @@
 		},
 		"rgb_ui": {
 			"name": "RGB UI",
-			"description": "Đổi màu UI của bot theo hiệu ứng RGB cycle liên tục thay vì màu tĩnh.",
+			"description": "Change the bot's UI color to a continuous RGB cycle effect instead of a static color.",
 			"type": "bool",
 			"default": false
 		},
