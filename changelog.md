@@ -1,0 +1,39 @@
+# Dll Bot
+
+
+## v1.0.0
+
+* Added HDR rendering (Libx265 / HEVC_NVENC).
+* Added menu background blur (requires mod).
+* Added custom keybinds for Frame Stepper.
+* Added Frame Stepper Hold functionality with mobile on-screen button support.
+* Added Telegram channel icon to the bot menu.
+* Added `.gdr2` macro import support.
+* Added built-in custom keybind support for opening the menu and toggling the macro.
+* Added warning toast for legacy `.gdr` macros not recorded with xdBot.
+* Added macro playback support during editor playtest.
+* Added xdBot menu button to the editor pause layer.
+* Added option to disable Auto Safe Mode.
+* Added PathFinder (TEST).
+* Added Ghost Playback (TEST).
+* Added Auto Swift Click.
+* Added Seamless Hold Continuity to prevent input drops when loading macros during holds.
+* Added SpeedHack audio support.
+* Added Speed Audio Sync.
+* Completely rewrote the rendering system.
+* Integrated Mobile FFmpeg API for native Android rendering.
+* Added Confirm to Exit/Edit dialogs.
+* Updated avatar/logo.
+* Added CBF (Click Between Frames) and CBS support.
+* Added Fast PBO rendering.
+* Added Async Queue for rendering.
+* Added Hardware Acceleration.
+* Added Manual C++ VFlip.
+* Added Macro Continue Botting.
+* Reworked the core botting system for improved stability.
+* Ported the bot to Geometry Dash 2.2081.
+* Rewrote the macro system from scratch.
+* Updated Geode SDK targeting to v5.4.1.
+* Fixed various rendering, audio synchronization, macro playback, Frame Stepper, mobile, UI, and stability issues.
+* Optimized the exact 1-frame stepper engine.
+* Improved cross-platform compilation and Geode v5 compatibility.
