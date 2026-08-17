@@ -2,6 +2,12 @@
 
 #include "gdr/gdr.hpp"
 
+#include <cmath>
+#include <cstdint>
+#include <filesystem>
+#include <optional>
+#include <string>
+#include <vector>
 
 #define SLC_NO_DEFAULT
 #include "gdr/slc/slc.hpp"
@@ -13,7 +19,7 @@ using namespace geode::prelude;
 const std::vector<float> safeValues = {
     1.0f / 240, 1.0f / 120, 1.0f / 80,  1.0f / 60,  1.0f / 48,
     1.0f / 40,  1.0f / 30,  1.0f / 24,  1.0f / 20,  1.0f / 16,
-    1.0f / 15,  1.0f / 12,  1.0f / 10,  1.0f / 8,   1.0f / 6,
+    1.0f / 15, 1.0f / 12, 1.0f / 10, 1.0f / 8,   1.0f / 6,
     1.0f / 5,  1.0f / 4,   1.0f / 3,   1.0f / 2
 };
 
@@ -26,7 +32,12 @@ enum state {
 struct input : gdr::Input {
     input() = default;
 
-    input(int frame, int button, bool player2, bool down)
+    input(
+        int frame,
+        int button,
+        bool player2,
+        bool down
+    )
         : Input(frame, button, player2, down) {}
 
     bool operator==(input const& other) const {
