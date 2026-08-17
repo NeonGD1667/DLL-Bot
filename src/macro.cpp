@@ -1153,14 +1153,12 @@ int Macro::saveSLC3(
         }
 
         auto result =
-            atom.addAction(
-                static_cast<uint64_t>(
-                    std::max(in->frame, 0)
-                ),
-                type,
-                in->down,
-                in->player2
-            );
+    atom.addAction(
+        static_cast<uint64_t>(in->frame),
+        type,
+        in->down,
+        in->player2
+    );
 
         if (!result) {
             log::error(
