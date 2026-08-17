@@ -986,7 +986,7 @@ Macro::exportGDR2() {
             for (auto const* in : group) {
                 uint64_t frame =
                     static_cast<uint64_t>(
-                        std::max(in->frame, 0)
+                       std::max(static_cast<int>(in->frame), 0)
                     );
 
                 uint64_t delta =
