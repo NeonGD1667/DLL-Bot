@@ -4,6 +4,7 @@
 #include "formats/v3/action.hpp"
 #include "formats/v3/error.hpp"
 #include "util.hpp"
+#include <span>
 
 #include <cassert>
 #include <print>
