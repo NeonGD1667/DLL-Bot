@@ -1,5 +1,32 @@
 # Dll Bot
 
+
+# v3.0.0
+
+Added
+
+- Added GDR2 macro format.
+- Added SLC2 macro format.
+- Added SLC3 macro format.
+- Added Macro Index (WIP).
+- Added RGB UI (Testing).
+- Added format selection in Save Macro.
+- Added SLC macro loading support.
+
+Fixed
+
+- Fixed Android ARMv7 compilation issues.
+- Fixed frame type handling when exporting macros.
+- Fixed SLC atom size handling on 32-bit platforms.
+
+Improved
+
+- Improved macro format compatibility.
+- Improved the macro saving workflow.
+- Improved UI for selecting macro formats.
+
+DLL Bot v3.0.0 — Macro formats are getting serious. 🗿
+
 # v1.1.2
 
 - **Add:** GDR2 (`.gdr2`) macro format — export and import support
