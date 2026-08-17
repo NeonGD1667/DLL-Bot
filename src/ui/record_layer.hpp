@@ -6,6 +6,7 @@
 #include "render_settings_layer.hpp"
 #include "save_macro_layer.hpp"
 #include "swift_click_settings_layer.hpp"
+#include "../utils/utils.hpp"
 enum InputType {
   None,
   Settings,
