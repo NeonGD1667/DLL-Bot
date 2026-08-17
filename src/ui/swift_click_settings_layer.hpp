@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../includes.hpp"
+#include "../utils/utils.hpp"
 
 class SwiftClickSettingsLayer : public geode::Popup, public TextInputDelegate {
 
