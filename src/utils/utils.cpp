@@ -1,11 +1,22 @@
 #include "utils.hpp"
 
+#include <algorithm>
+#include <cstring>
+#include <fstream>
+#include <iomanip>
+#include <sstream>
+
+#ifdef GEODE_IS_WINDOWS
+#include <Windows.h>
+#endif
+
 std::string Utils::narrow(const wchar_t* str) {
     if (!str) {
         return "";
     }
 
 #ifndef GEODE_IS_WINDOWS
+
     std::string result;
     size_t len = wcslen(str);
 
@@ -19,14 +30,23 @@ std::string Utils::narrow(const wchar_t* str) {
         if (str[i] > 0x7F) {
             return "";
         }
+
         result.push_back(static_cast<char>(str[i]));
     }
 
     return result;
 
 #else
+
     int size = WideCharToMultiByte(
-        CP_UTF8, 0, str, -1, nullptr, 0, nullptr, nullptr
+        CP_UTF8,
+        0,
+        str,
+        -1,
+        nullptr,
+        0,
+        nullptr,
+        nullptr
     );
 
     if (size <= 0) {
@@ -35,14 +55,30 @@ std::string Utils::narrow(const wchar_t* str) {
 
     auto buffer = new char[size];
 
+    if (!buffer) {
+        return "";
+    }
+
     WideCharToMultiByte(
-        CP_UTF8, 0, str, -1, buffer, size, nullptr, nullptr
+        CP_UTF8,
+        0,
+        str,
+        -1,
+        buffer,
+        size,
+        nullptr,
+        nullptr
     );
 
-    std::string result(buffer, static_cast<size_t>(size) - 1);
+    std::string result(
+        buffer,
+        static_cast<size_t>(size) - 1
+    );
+
     delete[] buffer;
 
     return result;
+
 #endif
 }
 
@@ -54,22 +90,31 @@ std::wstring Utils::widen(const char* str) {
     }
 
     std::wstring result;
-    result.reserve(strlen(str));
+    size_t len = strlen(str);
 
-    for (size_t i = 0; i < strlen(str); ++i) {
-        result.push_back(static_cast<wchar_t>(str[i]));
+    result.reserve(len);
+
+    for (size_t i = 0; i < len; ++i) {
+        result.push_back(
+            static_cast<wchar_t>(str[i])
+        );
     }
 
     return result;
 
 #else
 
-    if (str == nullptr) {
+    if (!str) {
         return L"Widen Error";
     }
 
     int size = MultiByteToWideChar(
-        CP_UTF8, 0, str, -1, nullptr, 0
+        CP_UTF8,
+        0,
+        str,
+        -1,
+        nullptr,
+        0
     );
 
     if (size <= 0) {
@@ -78,14 +123,28 @@ std::wstring Utils::widen(const char* str) {
 
     auto buffer = new wchar_t[size];
 
+    if (!buffer) {
+        return L"Widen Error";
+    }
+
     if (MultiByteToWideChar(
-            CP_UTF8, 0, str, -1, buffer, size
+            CP_UTF8,
+            0,
+            str,
+            -1,
+            buffer,
+            size
         ) <= 0) {
+
         delete[] buffer;
         return L"Widen Error";
     }
 
-    std::wstring result(buffer, static_cast<size_t>(size) - 1);
+    std::wstring result(
+        buffer,
+        static_cast<size_t>(size) - 1
+    );
+
     delete[] buffer;
 
     return result;
@@ -98,7 +157,11 @@ std::string Utils::toLower(std::string str) {
         str.begin(),
         str.end(),
         str.begin(),
-        ::tolower
+        [](unsigned char c) {
+            return static_cast<char>(
+                std::tolower(c)
+            );
+        }
     );
 
     return str;
@@ -113,19 +176,19 @@ std::time_t Utils::getFileCreationTime(
         path.wstring().c_str(),
         GENERIC_READ,
         FILE_SHARE_READ,
-        NULL,
+        nullptr,
         OPEN_EXISTING,
         FILE_ATTRIBUTE_NORMAL,
-        NULL
+        nullptr
     );
 
     if (hFile == INVALID_HANDLE_VALUE) {
         return 0;
     }
 
-    FILETIME creationTime;
-    FILETIME lastAccessTime;
-    FILETIME lastWriteTime;
+    FILETIME creationTime{};
+    FILETIME lastAccessTime{};
+    FILETIME lastWriteTime{};
 
     if (!GetFileTime(
             hFile,
@@ -133,18 +196,20 @@ std::time_t Utils::getFileCreationTime(
             &lastAccessTime,
             &lastWriteTime
         )) {
+
         CloseHandle(hFile);
         return 0;
     }
 
     CloseHandle(hFile);
 
-    ULARGE_INTEGER ull;
+    ULARGE_INTEGER ull{};
     ull.LowPart = creationTime.dwLowDateTime;
     ull.HighPart = creationTime.dwHighDateTime;
 
     return static_cast<std::time_t>(
-        ull.QuadPart / 10000000ULL - 11644473600ULL
+        ull.QuadPart / 10000000ULL
+        - 11644473600ULL
     );
 
 #else
@@ -158,13 +223,21 @@ std::string Utils::formatTime(std::time_t time) {
     std::tm tm{};
 
 #ifdef GEODE_IS_WINDOWS
+
     localtime_s(&tm, &time);
+
 #else
+
     localtime_r(&time, &tm);
+
 #endif
 
     std::ostringstream oss;
-    oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+
+    oss << std::put_time(
+        &tm,
+        "%Y-%m-%d %H:%M:%S"
+    );
 
     return oss.str();
 }
@@ -173,8 +246,15 @@ int Utils::copyFile(
     const std::string& sourcePath,
     const std::string& destinationPath
 ) {
-    std::ifstream source(sourcePath, std::ios::binary);
-    std::ofstream destination(destinationPath, std::ios::binary);
+    std::ifstream source(
+        sourcePath,
+        std::ios::binary
+    );
+
+    std::ofstream destination(
+        destinationPath,
+        std::ios::binary
+    );
 
     if (!source) {
         return 1;
@@ -196,7 +276,11 @@ std::vector<std::string> Utils::splitByChar(
     std::vector<std::string> strs;
 
     strs.reserve(
-        std::count(str.begin(), str.end(), splitChar) + 1
+        std::count(
+            str.begin(),
+            str.end(),
+            splitChar
+        ) + 1
     );
 
     size_t start = 0;
@@ -204,42 +288,59 @@ std::vector<std::string> Utils::splitByChar(
 
     while (end != std::string::npos) {
         strs.emplace_back(
-            str.substr(start, end - start)
+            str.substr(
+                start,
+                end - start
+            )
         );
 
         start = end + 1;
-        end = str.find(splitChar, start);
+        end = str.find(
+            splitChar,
+            start
+        );
     }
 
-    strs.emplace_back(str.substr(start));
+    strs.emplace_back(
+        str.substr(start)
+    );
 
     return strs;
 }
 
 std::string Utils::getTexture() {
-    cocos2d::ccColor3B color =
-        geode::Mod::get()->getSettingValue<cocos2d::ccColor3B>(
-            "background_color"
-        );
+    auto color =
+        geode::Mod::get()->getSettingValue<
+            cocos2d::ccColor3B
+        >("background_color");
 
-    std::string texture =
-        color == cocos2d::ccc3(51, 68, 153)
-            ? "GJ_square02.png"
-            : "GJ_square06.png";
-
-    return texture;
+    return color == cocos2d::ccc3(
+        51,
+        68,
+        153
+    )
+        ? "GJ_square02.png"
+        : "GJ_square06.png";
 }
 
-std::string Utils::getSimplifiedString(std::string str) {
-    if (str.find(".") == std::string::npos) {
+std::string Utils::getSimplifiedString(
+    std::string str
+) {
+    if (str.find('.') == std::string::npos) {
         return str;
     }
 
-    while (!str.empty() && str.back() == '0') {
+    while (
+        !str.empty() &&
+        str.back() == '0'
+    ) {
         str.pop_back();
     }
 
-    if (!str.empty() && str.back() == '.') {
+    if (
+        !str.empty() &&
+        str.back() == '.'
+    ) {
         str.pop_back();
     }
 
@@ -249,13 +350,21 @@ std::string Utils::getSimplifiedString(std::string str) {
 void Utils::setBackgroundColor(
     cocos2d::extension::CCScale9Sprite* bg
 ) {
-    cocos2d::ccColor3B color =
-        geode::Mod::get()->getSettingValue<cocos2d::ccColor3B>(
-            "background_color"
-        );
+    auto color =
+        geode::Mod::get()->getSettingValue<
+            cocos2d::ccColor3B
+        >("background_color");
 
-    if (color == cocos2d::ccc3(51, 68, 153)) {
-        color = cocos2d::ccc3(255, 255, 255);
+    if (color == cocos2d::ccc3(
+        51,
+        68,
+        153
+    )) {
+        color = cocos2d::ccc3(
+            255,
+            255,
+            255
+        );
     }
 
     bg->setColor(color);
