@@ -4,6 +4,9 @@
 #include "gdr/gdr.hpp"
 #include "utils/utils.hpp"
 
+#define SLC_NO_DEFAULT
+#include "gdr/slc/slc.hpp"
+
 using namespace geode::prelude;
 
 #define DIF(a, b) (std::fabs((a) - (b)) > 0.001f)
@@ -44,40 +47,102 @@ public:
     bool canChangeFPS = true;
     uintptr_t seed = 0;
     bool xdBotMacro = true;
-    bool platformer = false; // Set trong updateInfo(); dùng bởi importGDR2/exportGDR2
+    bool platformer = false;
 
-    static void recordAction(int frame, int button, bool player2, bool hold);
+    static void recordAction(
+        int frame,
+        int button,
+        bool player2,
+        bool hold
+    );
 
-    static void recordFrameFix(int frame, PlayerObject* p1, PlayerObject* p2);
+    static void recordFrameFix(
+        int frame,
+        PlayerObject* p1,
+        PlayerObject* p2
+    );
 
-    static int save(std::string author, std::string desc, std::string path, bool json = false);
+    // Legacy macro format
+    static int save(
+        std::string author,
+        std::string desc,
+        std::string path,
+        bool json = false
+    );
 
-    // Lưu macro ra định dạng .gdr2 (binary mới). Song song với save() cũ,
-    // không đụng tới bất kỳ chỗ gọi save() nào khác.
-    static int saveGDR2(std::string author, std::string desc, std::string path);
+    // GDR2 binary format
+    static int saveGDR2(
+        std::string author,
+        std::string desc,
+        std::string path
+    );
 
-    static void autoSave(GJGameLevel* level, int number);
+    // SLC2 format
+    static int saveSLC2(
+        std::string author,
+        std::string desc,
+        std::string path
+    );
 
-    static void tryAutosave(GJGameLevel* level, CheckpointObject* cp);
+    // SLC3 format
+    static int saveSLC3(
+        std::string author,
+        std::string desc,
+        std::string path
+    );
 
-    static void updateInfo(PlayLayer* pl);
+    static void autoSave(
+        GJGameLevel* level,
+        int number
+    );
+
+    static void tryAutosave(
+        GJGameLevel* level,
+        CheckpointObject* cp
+    );
+
+    static void updateInfo(
+        PlayLayer* pl
+    );
 
     static void updateTPS();
 
-    static bool loadXDFile(std::filesystem::path path);
+    // XD format
+    static bool loadXDFile(
+        std::filesystem::path path
+    );
 
-    static Macro XDtoGDR(std::filesystem::path path);
+    static Macro XDtoGDR(
+        std::filesystem::path path
+    );
 
-    static bool isGDR2Data(std::vector<std::uint8_t> const& data);
+    // GDR2 format
+    static bool isGDR2Data(
+        std::vector<std::uint8_t> const& data
+    );
 
-    static std::optional<Macro> importGDR2(std::vector<std::uint8_t> const& data);
+    static std::optional<Macro> importGDR2(
+        std::vector<std::uint8_t> const& data
+    );
 
-    // Đối xứng với importGDR2 — export instance hiện tại ra bytes .gdr2.
+    // Export current Macro instance to GDR2 bytes
     std::vector<std::uint8_t> exportGDR2();
+
+    // SLC2 format
+    static bool loadSLC2(
+        std::filesystem::path path
+    );
+
+    // SLC3 format
+    static bool loadSLC3(
+        std::filesystem::path path
+    );
 
     static void resetVariables();
 
-    static void resetState(bool cp = false);
+    static void resetState(
+        bool cp = false
+    );
 
     static void togglePlaying();
 
@@ -86,7 +151,6 @@ public:
     static bool shouldStep();
 
     static bool flipControls();
-
 };
 
 struct button {
@@ -104,6 +168,7 @@ struct PlayerData {
     std::map<int, bool> m_jumpPadRelated;
     std::map<int, bool> m_holdingButtons;
 #endif
+
     std::vector<float> m_playerFollowFloats;
     cocos2d::CCPoint position;
     float rotation;
