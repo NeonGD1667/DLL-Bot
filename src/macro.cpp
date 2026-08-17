@@ -1155,7 +1155,7 @@ int Macro::saveSLC3(
         auto result =
             atom.addAction(
                 static_cast<uint64_t>(
-                    std::max(in->frame, static_cast<uint32_t>(0))
+                    std::max(in->frame, 0)
                 ),
                 type,
                 in->down,
