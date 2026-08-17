@@ -54,7 +54,7 @@ private:
     std::string currentDownloadName;
     std::string currentDownloadFormat;
 
-    bool setup() override;
+    bool setup();
 
     void fetchIndex();
     void onIndexResult(geode::utils::web::WebResponse resp);
