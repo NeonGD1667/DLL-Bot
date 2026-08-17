@@ -1,55 +1,41 @@
 #pragma once
-
 #include "../includes.hpp"
+
+// Node tiện ích: chạy 1 vòng lặp update, đổi màu dần theo bánh xe HSV (hue
+// quay đều 360 độ) rồi áp màu đó lên toàn bộ target node truyền vào.
+// Add làm con của bất kỳ layer nào cần hiệu ứng RGB.
+//
+// Cách dùng:
+//   RGBEffect* fx = RGBEffect::create({ topBorder, bottomBorder, leftBorder, rightBorder });
+//   this->addChild(fx);
+//
+// Muốn tắt hiệu ứng: fx->removeFromParentAndCleanup(true);
+// (các target sẽ giữ nguyên màu cuối cùng nó tint, gọi lại setColor thủ công
+// nếu muốn reset về màu tĩnh ban đầu)
 
 class RGBEffect : public cocos2d::CCNode {
 private:
-    std::vector<cocos2d::CCNode*> m_targets;
-
-    float m_speed = 60.f;
-    float m_hue = 0.f;
-    float m_saturation = 1.f;
-    float m_value = 1.f;
+    std::vector<cocos2d::CCNode*> targets;
+    float speed = 60.f; // độ/giây trên bánh xe hue (60 = full vòng trong 6s)
+    float hue = 0.f;
+    float saturation = 1.f;
+    float value = 1.f;
 
     static cocos2d::ccColor3B hsvToRgb(float h, float s, float v) {
         h = std::fmod(h, 360.f);
+        if (h < 0.f) h += 360.f;
 
-        if (h < 0.f)
-            h += 360.f;
+        float c = v * s;
+        float x = c * (1.f - std::fabs(std::fmod(h / 60.f, 2.f) - 1.f));
+        float m = v - c;
 
-        const float c = v * s;
-        const float x =
-            c * (1.f - std::fabs(std::fmod(h / 60.f, 2.f) - 1.f));
-        const float m = v - c;
-
-        float r = 0.f;
-        float g = 0.f;
-        float b = 0.f;
-
-        if (h < 60.f) {
-            r = c;
-            g = x;
-        }
-        else if (h < 120.f) {
-            r = x;
-            g = c;
-        }
-        else if (h < 180.f) {
-            g = c;
-            b = x;
-        }
-        else if (h < 240.f) {
-            g = x;
-            b = c;
-        }
-        else if (h < 300.f) {
-            r = x;
-            b = c;
-        }
-        else {
-            r = c;
-            b = x;
-        }
+        float r = 0.f, g = 0.f, b = 0.f;
+        if (h < 60.f)       { r = c; g = x; b = 0.f; }
+        else if (h < 120.f) { r = x; g = c; b = 0.f; }
+        else if (h < 180.f) { r = 0.f; g = c; b = x; }
+        else if (h < 240.f) { r = 0.f; g = x; b = c; }
+        else if (h < 300.f) { r = x; g = 0.f; b = c; }
+        else                { r = c; g = 0.f; b = x; }
 
         return cocos2d::ccc3(
             static_cast<GLubyte>((r + m) * 255.f),
@@ -58,98 +44,48 @@ private:
         );
     }
 
-    static void applyColor(cocos2d::CCNode* node, cocos2d::ccColor3B color) {
-        if (!node)
-            return;
-
-        if (auto* sprite = typeinfo_cast<cocos2d::CCSprite*>(node)) {
-            sprite->setColor(color);
-            return;
-        }
-
-        if (auto* label = typeinfo_cast<cocos2d::CCLabelBMFont*>(node)) {
-            label->setColor(color);
-            return;
-        }
-
-        if (auto* scale9 =
-                typeinfo_cast<cocos2d::extension::CCScale9Sprite*>(node)) {
-            scale9->setColor(color);
-            return;
-        }
-
-        // CCNode không có setColor().
-        // Những loại node khác sẽ bị bỏ qua.
-    }
-
 public:
-    static RGBEffect* create(
-        std::vector<cocos2d::CCNode*> const& targets,
-        float speed = 60.f,
-        float saturation = 1.f,
-        float value = 1.f
-    ) {
-        auto* ret = new RGBEffect();
-
-        if (!ret->init()) {
-            delete ret;
-            return nullptr;
+    // targets: danh sách node sẽ bị đổi màu mỗi frame
+    // speed: tốc độ quay hue, độ/giây (mặc định 60 -> full chu kỳ màu trong 6s)
+    // saturation/value: độ bão hòa/độ sáng cố định, mặc định full màu tươi
+    static RGBEffect* create(std::vector<cocos2d::CCNode*> const& targets,
+                             float speed = 60.f, float saturation = 1.f, float value = 1.f) {
+        RGBEffect* ret = new RGBEffect();
+        if (ret->init()) {
+            ret->targets = targets;
+            ret->speed = speed;
+            ret->saturation = saturation;
+            ret->value = value;
+            ret->scheduleUpdate();
+            ret->autorelease();
+            return ret;
         }
-
-        ret->m_targets = targets;
-        ret->m_speed = speed;
-        ret->m_saturation = saturation;
-        ret->m_value = value;
-
-        ret->scheduleUpdate();
-        ret->autorelease();
-
-        return ret;
+        delete ret;
+        return nullptr;
     }
 
+    // Thêm target sau khi đã tạo (VD node được tạo muộn hơn trong setup()).
     void addTarget(cocos2d::CCNode* target) {
-        if (!target)
-            return;
-
-        m_targets.push_back(target);
-    }
-
-    void removeTarget(cocos2d::CCNode* target) {
-        if (!target)
-            return;
-
-        std::erase(m_targets, target);
-    }
-
-    void clearTargets() {
-        m_targets.clear();
-    }
-
-    void setSpeed(float speed) {
-        m_speed = speed;
-    }
-
-    float getSpeed() const {
-        return m_speed;
+        if (target) targets.push_back(target);
     }
 
     void update(float dt) override {
-        m_hue += m_speed * dt;
+        hue += speed * dt;
+        if (hue >= 360.f) hue -= 360.f;
 
-        while (m_hue >= 360.f)
-            m_hue -= 360.f;
+        cocos2d::ccColor3B color = hsvToRgb(hue, saturation, value);
 
-        while (m_hue < 0.f)
-            m_hue += 360.f;
+        for (cocos2d::CCNode* node : targets) {
+            if (!node) continue;
 
-        auto color = hsvToRgb(
-            m_hue,
-            m_saturation,
-            m_value
-        );
-
-        for (auto* node : m_targets) {
-            applyColor(node, color);
+            if (auto* sprite = typeinfo_cast<cocos2d::CCSprite*>(node))
+                sprite->setColor(color);
+            else if (auto* label = typeinfo_cast<cocos2d::CCLabelBMFont*>(node))
+                label->setColor(color);
+            else if (auto* scale9 = typeinfo_cast<cocos2d::extension::CCScale9Sprite*>(node))
+                scale9->setColor(color);
+            else
+                node->setColor(color); // fallback, CCNode có setColor ảo
         }
     }
 };

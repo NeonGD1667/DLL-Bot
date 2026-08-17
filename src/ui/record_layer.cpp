@@ -1,5 +1,4 @@
 #include "record_layer.hpp"
-#include "rgb_effect.hpp"
 #include "../BlurAPI.hpp"
 #include "../hacks/coin_finder.hpp"
 #include "../hacks/show_trajectory.hpp"
@@ -9,11 +8,13 @@
 #include "clickbot_layer.hpp"
 #include "game_ui.hpp"
 #include "macro_editor.hpp"
+#include "macro_index_layer.hpp"
 #include "macro_timeline_layer.hpp"
 #include "mirror_settings_layer.hpp"
 #include "noclip_settings_layer.hpp"
 #include "pathfinder_settings_layer.hpp"
 #include "render_presets_layer.hpp"
+#include "rgb_effect.hpp"
 #include "step_shift_settings_layer.hpp"
 #include "swift_click_settings_layer.hpp"
 #include "trajectory_settings_layer.hpp"
@@ -176,6 +177,8 @@ $execute {
 };
 
 void RecordLayer::openSaveMacro(CCObject *) { SaveMacroLayer::open(); }
+
+void RecordLayer::openMacroIndex(CCObject *) { MacroIndexLayer::open(); }
 
 void RecordLayer::openLoadMacro(CCObject *) {
   LoadMacroLayer::open(static_cast<geode::Popup *>(this), nullptr);
@@ -966,6 +969,15 @@ bool RecordLayer::setup() {
                                       menu_selector(RecordLayer::onEditMacro));
 
   btn->setPosition(ccp(-56, 34));
+  menu->addChild(btn);
+
+  btnSprite = ButtonSprite::create("Index");
+  btnSprite->setScale(0.46f);
+
+  btn = CCMenuItemSpriteExtra::create(
+      btnSprite, this, menu_selector(RecordLayer::openMacroIndex));
+
+  btn->setPosition(ccp(-176, 14));
   menu->addChild(btn);
 
   widthInput = CCTextInputNode::create(150, 30, "Width", "chatFont.fnt");
