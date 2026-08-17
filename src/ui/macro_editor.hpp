@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../includes.hpp"
+#include "../utils/utils.hpp"
 
 const std::unordered_map<int, std::string> btnNames = { {1, "Jump"}, {2, "Left"}, {3, "Right"},{4, "Jump"}, {5, "Left"}, {6, "Right"} };
 
