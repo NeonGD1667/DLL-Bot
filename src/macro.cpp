@@ -37,52 +37,6 @@ static std::string xdJoin(
     return ss.str();
 }
 
-static std::string xdFrameFix(
-    int frame,
-    gdr::FrameFix const& fix
-) {
-    /*
-     * XD frame-fix layout expected by the existing importer:
-
-       frame
-       hold
-       button
-       player2
-       posOnly
-       p1.x
-       p1.y
-       ...
-       p2.x
-       p2.y
-
-     * We don't have every XD-only physics value in Macro,
-     * therefore preserve the known position fields and zero
-     * the unknown fields.
-     */
-
-    std::ostringstream ss;
-    ss << std::setprecision(9);
-
-    ss << frame
-       << "|0"
-       << "|0"
-       << "|0"
-       << "|1"
-
-       << "|" << fix.p1.position.x
-       << "|" << fix.p1.position.y
-
-       << "|0"
-       << "|0"
-       << "|0"
-       << "|0"
-
-       << "|" << fix.p2.position.x
-       << "|" << fix.p2.position.y;
-
-    return ss.str();
-}
-
 static bool xdParseBool(std::string const& value) {
     return value == "1" ||
            value == "true" ||
@@ -129,12 +83,15 @@ static bool xdParseFloat(
 
 } // namespace
 
+
 int Macro::saveXD(
     std::string author,
     std::string desc,
     std::string path
 ) {
-    if (inputs.empty())
+    auto& macro = Global::get().macro;
+
+    if (macro.inputs.empty())
         return 31;
 
     if (path.empty())
@@ -148,6 +105,7 @@ int Macro::saveXD(
 
     while (std::filesystem::exists(finalPath)) {
         ++iteration;
+
         finalPath =
             path + fmt::format(" ({}).xd", iteration);
     }
@@ -160,35 +118,25 @@ int Macro::saveXD(
     if (widePath == L"Widen Error")
         return 30;
 
-    file.open(widePath, std::ios::binary);
+    file.open(
+        widePath,
+        std::ios::binary
+    );
 #else
-    file.open(finalPath, std::ios::binary);
+    file.open(
+        finalPath,
+        std::ios::binary
+    );
 #endif
 
     if (!file)
         return 20;
 
-    /*
-     * XD uses an FPS header.
-
-       240 -> multiplier 1
-       120 -> multiplier 2
-       60  -> multiplier 4
-
-     * Existing importer does:
-     *
-     *     frame = xdFrame * (240 / fps)
-     */
-
-    float fps = framerate;
+    float fps = macro.framerate;
 
     if (!std::isfinite(fps) || fps <= 0.f)
         fps = 240.f;
 
-    /*
-     * XD has a special Android marker in the importer.
-     * For normal export we write the actual FPS instead.
-     */
     int xdFPS = static_cast<int>(
         std::round(fps)
     );
@@ -198,15 +146,13 @@ int Macro::saveXD(
 
     file << xdFPS << '\n';
 
-    /*
-     * Sort a COPY only.
-     *
-     * Do NOT reorder Macro::inputs itself.
-     */
     std::vector<input const*> ordered;
-    ordered.reserve(inputs.size());
 
-    for (auto const& in : inputs)
+    ordered.reserve(
+        macro.inputs.size()
+    );
+
+    for (auto const& in : macro.inputs)
         ordered.push_back(&in);
 
     std::stable_sort(
@@ -216,9 +162,6 @@ int Macro::saveXD(
             if (a->frame != b->frame)
                 return a->frame < b->frame;
 
-            /*
-             * Keep player 1 before player 2.
-             */
             if (a->player2 != b->player2)
                 return !a->player2;
 
@@ -227,17 +170,9 @@ int Macro::saveXD(
     );
 
     const double multiplier =
-        240.0 / static_cast<double>(xdFPS);
+        240.0 /
+        static_cast<double>(xdFPS);
 
-    /*
-     * Convert internal 240-TPS frame back to XD frame.
-     *
-     * Example:
-     *
-     * internal 240
-     * FPS 120
-     * XD frame = 120
-     */
     for (auto const* in : ordered) {
         int xdFrame = static_cast<int>(
             std::llround(
@@ -259,44 +194,16 @@ int Macro::saveXD(
     }
 
     /*
-     * Frame fixes are optional.
+     * Frame fixes are intentionally not exported here.
      *
-     * They use the same posOnly structure accepted
-     * by the current XDtoGDR importer.
+     * The current gdr::FrameData API does not expose
+     * the old .position member used by the previous
+     * implementation.
+     *
+     * Keeping the input export independent prevents
+     * the XD exporter from depending on an outdated
+     * FrameData layout.
      */
-    for (auto const& fix : frameFixes) {
-        int xdFrame = static_cast<int>(
-            std::llround(
-                static_cast<double>(fix.frame) /
-                multiplier
-            )
-        );
-
-        if (xdFrame < 0)
-            xdFrame = 0;
-
-        file << xdFrame << "|0|0|0|1";
-
-        file << '|'
-             << std::setprecision(9)
-             << fix.p1.position.x;
-
-        file << '|'
-             << std::setprecision(9)
-             << fix.p1.position.y;
-
-        file << "|0|0|0|0";
-
-        file << '|'
-             << std::setprecision(9)
-             << fix.p2.position.x;
-
-        file << '|'
-             << std::setprecision(9)
-             << fix.p2.position.y;
-
-        file << '\n';
-    }
 
     if (!file.good()) {
         file.close();
@@ -308,24 +215,28 @@ int Macro::saveXD(
     log::info(
         "Saved XD macro: {} ({} inputs)",
         finalPath,
-        inputs.size()
+        macro.inputs.size()
     );
 
     return 0;
 }
 
+
 bool Macro::loadXDFile(
     std::filesystem::path path
 ) {
-    Macro newMacro = Macro::XDtoGDR(path);
+    Macro newMacro =
+        Macro::XDtoGDR(path);
 
     if (newMacro.description == "fail")
         return false;
 
-    Global::get().macro = std::move(newMacro);
+    Global::get().macro =
+        std::move(newMacro);
 
     return true;
 }
+
 
 Macro Macro::XDtoGDR(
     std::filesystem::path path
@@ -337,6 +248,7 @@ Macro Macro::XDtoGDR(
     newMacro.gameVersion = GEODE_GD_VERSION;
     newMacro.framerate = 240.f;
     newMacro.xdBotMacro = true;
+
     newMacro.botInfo.name = "xdBot";
     newMacro.botInfo.version = xdBotVersion;
 
@@ -361,30 +273,20 @@ Macro Macro::XDtoGDR(
 
     std::string line;
 
-    /*
-     * XD Android files use:
-
-         android
-
-     * Normal XD files use:
-
-         FPS
-
-     * Existing importer treated Android as 4x,
-     * meaning Android recordings are interpreted
-     * as 60 FPS relative to 240 TPS.
-     */
     float fpsMultiplier = 1.f;
     bool firstLine = true;
 
     while (std::getline(file, line)) {
-        if (!line.empty() && line.back() == '\r')
+        if (!line.empty() &&
+            line.back() == '\r') {
             line.pop_back();
+        }
 
         if (line.empty())
             continue;
 
         std::vector<std::string> action;
+
         std::stringstream ss(line);
         std::string item;
 
@@ -392,7 +294,7 @@ Macro Macro::XDtoGDR(
             action.push_back(item);
 
         /*
-         * Header.
+         * Header
          */
         if (firstLine) {
             firstLine = false;
@@ -406,9 +308,13 @@ Macro Macro::XDtoGDR(
 
                 int fps = 0;
 
-                if (xdParseInt(action[0], fps) && fps > 0) {
+                if (
+                    xdParseInt(action[0], fps) &&
+                    fps > 0
+                ) {
                     fpsMultiplier =
-                        240.f / static_cast<float>(fps);
+                        240.f /
+                        static_cast<float>(fps);
 
                     newMacro.framerate =
                         static_cast<float>(fps);
@@ -419,8 +325,7 @@ Macro Macro::XDtoGDR(
         }
 
         /*
-         * Some XD files may contain a header anywhere
-         * before the first input.
+         * Header can also appear later.
          */
         if (action.size() == 1) {
             if (action[0] == "android") {
@@ -431,9 +336,13 @@ Macro Macro::XDtoGDR(
 
             int fps = 0;
 
-            if (xdParseInt(action[0], fps) && fps > 0) {
+            if (
+                xdParseInt(action[0], fps) &&
+                fps > 0
+            ) {
                 fpsMultiplier =
-                    240.f / static_cast<float>(fps);
+                    240.f /
+                    static_cast<float>(fps);
 
                 newMacro.framerate =
                     static_cast<float>(fps);
@@ -443,37 +352,46 @@ Macro Macro::XDtoGDR(
         }
 
         /*
-         * Normal XD action needs at least:
-
-         0 frame
-         1 hold
-         2 button
-         3 player2
-         4 posOnly
+         * Normal XD action:
+         *
+         * 0 = frame
+         * 1 = hold
+         * 2 = button
+         * 3 = player2
+         * 4 = posOnly
          */
         if (action.size() < 5) {
             log::warn(
                 "Skipping malformed XD line: {}",
                 line
             );
+
             continue;
         }
 
         int rawFrame = 0;
         int button = 0;
 
-        if (!xdParseInt(action[0], rawFrame) ||
-            !xdParseInt(action[2], button)) {
+        if (
+            !xdParseInt(action[0], rawFrame) ||
+            !xdParseInt(action[2], button)
+        ) {
             log::warn(
                 "Skipping invalid XD input: {}",
                 line
             );
+
             continue;
         }
 
-        bool hold = xdParseBool(action[1]);
-        bool player2 = xdParseBool(action[3]);
-        bool posOnly = xdParseBool(action[4]);
+        bool hold =
+            xdParseBool(action[1]);
+
+        bool player2 =
+            xdParseBool(action[3]);
+
+        bool posOnly =
+            xdParseBool(action[4]);
 
         int frame = static_cast<int>(
             std::llround(
@@ -497,19 +415,20 @@ Macro Macro::XDtoGDR(
         }
 
         /*
-         * Frame-fix requires:
+         * Frame-fix records are accepted only
+         * when they contain the expected number
+         * of fields.
          *
-         * [5]  p1.x
-         * [6]  p1.y
-         *
-         * [11] p2.x
-         * [12] p2.y
+         * The current exporter does not generate
+         * them, but keeping this parser allows
+         * existing XD files to remain readable.
          */
         if (action.size() < 13) {
             log::warn(
                 "Skipping malformed XD frame-fix: {}",
                 line
             );
+
             continue;
         }
 
@@ -518,14 +437,17 @@ Macro Macro::XDtoGDR(
         float p2x = 0.f;
         float p2y = 0.f;
 
-        if (!xdParseFloat(action[5], p1x) ||
+        if (
+            !xdParseFloat(action[5], p1x) ||
             !xdParseFloat(action[6], p1y) ||
             !xdParseFloat(action[11], p2x) ||
-            !xdParseFloat(action[12], p2y)) {
+            !xdParseFloat(action[12], p2y)
+        ) {
             log::warn(
                 "Skipping invalid XD frame-fix: {}",
                 line
             );
+
             continue;
         }
 
@@ -544,9 +466,6 @@ Macro Macro::XDtoGDR(
 
     file.close();
 
-    /*
-     * Last frame.
-     */
     if (!newMacro.inputs.empty()) {
         newMacro.lastRecordedFrame =
             newMacro.inputs.back().frame;
@@ -554,7 +473,8 @@ Macro Macro::XDtoGDR(
         newMacro.duration =
             static_cast<double>(
                 newMacro.lastRecordedFrame
-            ) / static_cast<double>(
+            ) /
+            static_cast<double>(
                 newMacro.framerate > 0.f
                     ? newMacro.framerate
                     : 240.f
