@@ -7,6 +7,13 @@
 #include <cstring>
 #include <optional>
 #include <span>
+#include <fstream>
+#include <algorithm>
+#include <sstream>
+#include <cmath>
+
+#define SLC_NO_DEFAULT
+#include "gdr/slc/slc.hpp"
 
 #include <Geode/modify/PlayLayer.hpp>
 
@@ -14,786 +21,1499 @@ namespace {
 
 class GDR2Reader {
 public:
-  explicit GDR2Reader(std::span<std::uint8_t const> data) : m_data(data) {}
+    explicit GDR2Reader(std::span<std::uint8_t const> data) : m_data(data) {}
 
-  bool empty() const { return m_data.empty(); }
+    bool empty() const { return m_data.empty(); }
 
-  bool readBytes(void *out, size_t size) {
-    if (size > m_data.size())
-      return false;
-
-    std::memcpy(out, m_data.data(), size);
-    m_data = m_data.subspan(size);
-    return true;
-  }
-
-  bool skip(size_t size) {
-    if (size > m_data.size())
-      return false;
-
-    m_data = m_data.subspan(size);
-    return true;
-  }
-
-  template <typename T> bool readVarint(T &out) {
-    static_assert(std::is_integral_v<T>);
-
-    uint64_t value = 0;
-    int shift = 0;
-
-    while (true) {
-      if (m_data.empty() || shift > 63)
-        return false;
-
-      auto byte = m_data.front();
-      m_data = m_data.subspan(1);
-
-      value |= static_cast<uint64_t>(byte & 0x7F) << shift;
-      if ((byte & 0x80) == 0)
-        break;
-
-      shift += 7;
+    bool readBytes(void* out, size_t size) {
+        if (size > m_data.size())
+            return false;
+        std::memcpy(out, m_data.data(), size);
+        m_data = m_data.subspan(size);
+        return true;
     }
 
-    out = static_cast<T>(value);
-    return true;
-  }
+    bool skip(size_t size) {
+        if (size > m_data.size())
+            return false;
+        m_data = m_data.subspan(size);
+        return true;
+    }
 
-  template <typename T> bool readBE(T &out) {
-    std::array<std::uint8_t, sizeof(T)> bytes{};
-    if (!readBytes(bytes.data(), bytes.size()))
-      return false;
+    template <typename T>
+    bool readVarint(T& out) {
+        static_assert(std::is_integral_v<T>);
+        uint64_t value = 0;
+        int shift = 0;
 
-    if constexpr (std::endian::native == std::endian::little)
-      std::reverse(bytes.begin(), bytes.end());
+        while (true) {
+            if (m_data.empty() || shift > 63)
+                return false;
 
-    std::memcpy(&out, bytes.data(), sizeof(T));
-    return true;
-  }
+            auto byte = m_data.front();
+            m_data = m_data.subspan(1);
 
-  bool readBool(bool &out) {
-    uint8_t value = 0;
-    if (!readVarint(value))
-      return false;
-    out = value != 0;
-    return true;
-  }
+            value |= static_cast<uint64_t>(byte & 0x7F) << shift;
 
-  bool readString(std::string &out) {
-    size_t size = 0;
-    if (!readVarint(size))
-      return false;
-    if (size > m_data.size())
-      return false;
+            if ((byte & 0x80) == 0)
+                break;
 
-    out.assign(reinterpret_cast<char const *>(m_data.data()), size);
-    m_data = m_data.subspan(size);
-    return true;
-  }
+            shift += 7;
+        }
+
+        out = static_cast<T>(value);
+        return true;
+    }
+
+    template <typename T>
+    bool readBE(T& out) {
+        std::array<std::uint8_t, sizeof(T)> bytes{};
+
+        if (!readBytes(bytes.data(), bytes.size()))
+            return false;
+
+        if constexpr (std::endian::native == std::endian::little)
+            std::reverse(bytes.begin(), bytes.end());
+
+        std::memcpy(&out, bytes.data(), sizeof(T));
+        return true;
+    }
+
+    bool readBool(bool& out) {
+        uint8_t value = 0;
+
+        if (!readVarint(value))
+            return false;
+
+        out = value != 0;
+        return true;
+    }
+
+    bool readString(std::string& out) {
+        size_t size = 0;
+
+        if (!readVarint(size))
+            return false;
+
+        if (size > m_data.size())
+            return false;
+
+        out.assign(
+            reinterpret_cast<char const*>(m_data.data()),
+            size
+        );
+
+        m_data = m_data.subspan(size);
+        return true;
+    }
 
 private:
-  std::span<std::uint8_t const> m_data;
+    std::span<std::uint8_t const> m_data;
 };
 
-// Đối xứng với GDR2Reader — cùng format varint/BE/string/bool để round-trip
-// đúng với importGDR2.
 class GDR2Writer {
 public:
-  void writeBytes(const void *data, size_t size) {
-    const std::uint8_t *bytes = static_cast<const std::uint8_t *>(data);
-    m_data.insert(m_data.end(), bytes, bytes + size);
-  }
+    void writeBytes(const void* data, size_t size) {
+        auto const* bytes =
+            static_cast<std::uint8_t const*>(data);
 
-  template <typename T> void writeVarint(T value) {
-    static_assert(std::is_integral_v<T>);
-    uint64_t v = static_cast<uint64_t>(value);
+        m_data.insert(
+            m_data.end(),
+            bytes,
+            bytes + size
+        );
+    }
 
-    do {
-      std::uint8_t byte = v & 0x7F;
-      v >>= 7;
-      if (v != 0)
-        byte |= 0x80;
-      m_data.push_back(byte);
-    } while (v != 0);
-  }
+    template <typename T>
+    void writeVarint(T value) {
+        static_assert(std::is_integral_v<T>);
 
-  template <typename T> void writeBE(T value) {
-    std::array<std::uint8_t, sizeof(T)> bytes{};
-    std::memcpy(bytes.data(), &value, sizeof(T));
+        uint64_t v = static_cast<uint64_t>(value);
 
-    if constexpr (std::endian::native == std::endian::little)
-      std::reverse(bytes.begin(), bytes.end());
+        do {
+            std::uint8_t byte =
+                static_cast<std::uint8_t>(v & 0x7F);
 
-    writeBytes(bytes.data(), bytes.size());
-  }
+            v >>= 7;
 
-  void writeBool(bool value) { writeVarint<std::uint8_t>(value ? 1 : 0); }
+            if (v != 0)
+                byte |= 0x80;
 
-  void writeString(std::string const &value) {
-    writeVarint(value.size());
-    writeBytes(value.data(), value.size());
-  }
+            m_data.push_back(byte);
+        } while (v != 0);
+    }
 
-  std::vector<std::uint8_t> const &data() const { return m_data; }
+    template <typename T>
+    void writeBE(T value) {
+        std::array<std::uint8_t, sizeof(T)> bytes{};
+
+        std::memcpy(
+            bytes.data(),
+            &value,
+            sizeof(T)
+        );
+
+        if constexpr (std::endian::native == std::endian::little)
+            std::reverse(bytes.begin(), bytes.end());
+
+        writeBytes(bytes.data(), bytes.size());
+    }
+
+    void writeBool(bool value) {
+        writeVarint<std::uint8_t>(
+            value ? 1 : 0
+        );
+    }
+
+    void writeString(std::string const& value) {
+        writeVarint(value.size());
+        writeBytes(value.data(), value.size());
+    }
+
+    std::vector<std::uint8_t> const& data() const {
+        return m_data;
+    }
 
 private:
-  std::vector<std::uint8_t> m_data;
+    std::vector<std::uint8_t> m_data;
 };
 
 } // namespace
 
-void Macro::recordAction(int frame, int button, bool player2, bool hold) {
-  PlayLayer *pl = PlayLayer::get();
-  if (!pl)
-    return;
+void Macro::recordAction(
+    int frame,
+    int button,
+    bool player2,
+    bool hold
+) {
+    PlayLayer* pl = PlayLayer::get();
 
-  auto &g = Global::get();
+    if (!pl)
+        return;
 
-  if (g.macro.inputs.empty())
-    Macro::updateInfo(pl);
+    auto& g = Global::get();
 
-  if (g.tpsEnabled)
-    g.macro.framerate = g.tps;
+    if (g.macro.inputs.empty())
+        Macro::updateInfo(pl);
 
-  if (Macro::flipControls())
-    player2 = !player2;
+    if (g.tpsEnabled)
+        g.macro.framerate = g.tps;
 
-  g.macro.inputs.push_back(input(frame, button, player2, hold));
+    if (Macro::flipControls())
+        player2 = !player2;
+
+    g.macro.inputs.emplace_back(
+        frame,
+        button,
+        player2,
+        hold
+    );
 }
 
-void Macro::recordFrameFix(int frame, PlayerObject *p1, PlayerObject *p2) {
-  float p1Rotation = p1->getRotation();
-  float p2Rotation = p2->getRotation();
+void Macro::recordFrameFix(
+    int frame,
+    PlayerObject* p1,
+    PlayerObject* p2
+) {
+    if (!p1 || !p2)
+        return;
 
-  while (p1Rotation < 0 || p1Rotation > 360)
-    p1Rotation += p1Rotation < 0 ? 360.f : -360.f;
+    float p1Rotation = p1->getRotation();
+    float p2Rotation = p2->getRotation();
 
-  while (p2Rotation < 0 || p2Rotation > 360)
-    p2Rotation += p2Rotation < 0 ? 360.f : -360.f;
+    while (p1Rotation < 0.f || p1Rotation > 360.f)
+        p1Rotation += p1Rotation < 0.f ? 360.f : -360.f;
 
-  Global::get().macro.frameFixes.push_back({frame,
-                                            {p1->getPosition(), p1Rotation},
-                                            {p2->getPosition(), p2Rotation}});
+    while (p2Rotation < 0.f || p2Rotation > 360.f)
+        p2Rotation += p2Rotation < 0.f ? 360.f : -360.f;
+
+    Global::get().macro.frameFixes.push_back({
+        frame,
+        {p1->getPosition(), p1Rotation},
+        {p2->getPosition(), p2Rotation}
+    });
 }
 
 bool Macro::flipControls() {
-  PlayLayer *pl = PlayLayer::get();
-  if (!pl)
-    return GameManager::get()->getGameVariable("0010");
+    PlayLayer* pl = PlayLayer::get();
 
-  return pl->m_levelSettings->m_platformerMode
-             ? false
-             : GameManager::get()->getGameVariable("0010");
+    if (!pl)
+        return GameManager::get()->getGameVariable("0010");
+
+    return pl->m_levelSettings->m_platformerMode
+        ? false
+        : GameManager::get()->getGameVariable("0010");
 }
 
-void Macro::autoSave(GJGameLevel *level, int number) {
-  if (!level)
-    level = PlayLayer::get() != nullptr ? PlayLayer::get()->m_level : nullptr;
-  if (!level)
-    return;
+void Macro::autoSave(GJGameLevel* level, int number) {
+    if (!level)
+        level = PlayLayer::get()
+            ? PlayLayer::get()->m_level
+            : nullptr;
 
-  std::string levelname = level->m_levelName;
-  std::filesystem::path autoSavesPath =
-      Mod::get()->getSettingValue<std::filesystem::path>("autosaves_folder");
-  std::filesystem::path path =
-      autoSavesPath / fmt::format("autosave_{}_{}", levelname, number);
+    if (!level)
+        return;
 
-  if (!std::filesystem::exists(autoSavesPath))
-    return;
+    std::string levelname = level->m_levelName;
 
-  std::string username = GJAccountManager::sharedState() != nullptr
-                             ? GJAccountManager::sharedState()->m_username
-                             : "";
-  int result = Macro::save(
-      username, fmt::format("AutoSave {} in level {}", number, levelname),
-      path.string());
+    auto autoSavesPath =
+        Mod::get()->getSettingValue<std::filesystem::path>(
+            "autosaves_folder"
+        );
 
-  if (result != 0)
-    log::debug("Failed to autosave macro. ID: {}. Path: {}", result, path);
+    auto path =
+        autoSavesPath /
+        fmt::format(
+            "autosave_{}_{}",
+            levelname,
+            number
+        );
+
+    if (!std::filesystem::exists(autoSavesPath))
+        return;
+
+    std::string username =
+        GJAccountManager::sharedState()
+            ? GJAccountManager::sharedState()->m_username
+            : "";
+
+    int result = Macro::save(
+        username,
+        fmt::format(
+            "AutoSave {} in level {}",
+            number,
+            levelname
+        ),
+        path.string()
+    );
+
+    if (result != 0) {
+        log::debug(
+            "Failed to autosave macro. ID: {}. Path: {}",
+            result,
+            path
+        );
+    }
 }
 
-void Macro::tryAutosave(GJGameLevel *level, CheckpointObject *cp) {
-  auto &g = Global::get();
+void Macro::tryAutosave(
+    GJGameLevel* level,
+    CheckpointObject* cp
+) {
+    auto& g = Global::get();
 
-  if (g.state != state::recording)
-    return;
-  if (!g.autosaveEnabled)
-    return;
-  if (!g.checkpoints.contains(cp))
-    return;
-  if (g.checkpoints[cp].frame < g.lastAutoSaveFrame)
-    return;
+    if (g.state != state::recording)
+        return;
 
-  std::filesystem::path autoSavesPath =
-      g.mod->getSettingValue<std::filesystem::path>("autosaves_folder");
+    if (!g.autosaveEnabled)
+        return;
 
-  if (!std::filesystem::exists(autoSavesPath))
-    return log::debug("Failed to access auto saves path.");
+    if (!g.checkpoints.contains(cp))
+        return;
 
-  std::string levelname = level->m_levelName;
-  std::filesystem::path path =
-      autoSavesPath /
-      fmt::format("autosave_{}_{}", levelname, g.currentSession);
-  std::error_code ec;
-  std::filesystem::remove(path.string() + ".gdr", ec); // Remove previous save
-  if (ec)
-    log::warn("Failed to remove previous autosave");
+    if (g.checkpoints[cp].frame < g.lastAutoSaveFrame)
+        return;
 
-  autoSave(level, g.currentSession);
+    if (!level)
+        return;
+
+    auto autoSavesPath =
+        g.mod->getSettingValue<std::filesystem::path>(
+            "autosaves_folder"
+        );
+
+    if (!std::filesystem::exists(autoSavesPath)) {
+        log::debug("Failed to access auto saves path.");
+        return;
+    }
+
+    std::string levelname = level->m_levelName;
+
+    auto path =
+        autoSavesPath /
+        fmt::format(
+            "autosave_{}_{}",
+            levelname,
+            g.currentSession
+        );
+
+    std::error_code ec;
+
+    std::filesystem::remove(
+        path.string() + ".gdr",
+        ec
+    );
+
+    if (ec)
+        log::warn("Failed to remove previous autosave");
+
+    autoSave(
+        level,
+        g.currentSession
+    );
 }
 
-void Macro::updateInfo(PlayLayer *pl) {
-  if (!pl)
-    return;
+void Macro::updateInfo(PlayLayer* pl) {
+    if (!pl)
+        return;
 
-  auto &g = Global::get();
+    auto& g = Global::get();
 
-  GJGameLevel *level = pl->m_level;
-  if (level->m_lowDetailModeToggled != g.macro.ldm)
-    g.macro.ldm = level->m_lowDetailModeToggled;
+    GJGameLevel* level = pl->m_level;
 
-  int id = level->m_levelID.value();
-  if (id != g.macro.levelInfo.id)
-    g.macro.levelInfo.id = id;
+    if (!level)
+        return;
 
-  bool platformer = pl->m_levelSettings->m_platformerMode;
-  if (platformer != g.macro.platformer)
-    g.macro.platformer = platformer;
+    g.macro.ldm =
+        level->m_lowDetailModeToggled;
 
-  std::string name = level->m_levelName;
-  if (name != g.macro.levelInfo.name)
-    g.macro.levelInfo.name = name;
+    g.macro.levelInfo.id =
+        level->m_levelID.value();
 
-  std::string author = GJAccountManager::sharedState()->m_username;
-  if (g.macro.author != author)
-    g.macro.author = author;
+    g.macro.platformer =
+        pl->m_levelSettings->m_platformerMode;
 
-  if (g.macro.author == "")
-    g.macro.author = "N/A";
+    g.macro.levelInfo.name =
+        level->m_levelName;
 
-  g.macro.botInfo.name = "xdBot";
-  g.macro.botInfo.version = xdBotVersion;
-  g.macro.xdBotMacro = true;
+    std::string author =
+        GJAccountManager::sharedState()
+            ? GJAccountManager::sharedState()->m_username
+            : "";
+
+    g.macro.author =
+        author.empty()
+            ? "N/A"
+            : author;
+
+    g.macro.botInfo.name = "xdBot";
+    g.macro.botInfo.version = xdBotVersion;
+    g.macro.xdBotMacro = true;
 }
 
 void Macro::updateTPS() {
-  auto &g = Global::get();
+    auto& g = Global::get();
 
-  if (g.state != state::none && !g.macro.inputs.empty()) {
-    g.previousTpsEnabled = g.tpsEnabled;
-    g.previousTps = g.tps;
+    if (g.state != state::none &&
+        !g.macro.inputs.empty()) {
 
-    g.tpsEnabled = g.macro.framerate != 240.f;
-    if (g.tpsEnabled)
-      g.tps = g.macro.framerate;
+        g.previousTpsEnabled = g.tpsEnabled;
+        g.previousTps = g.tps;
 
-    g.mod->setSavedValue("macro_tps", g.tps);
-    g.mod->setSavedValue("macro_tps_enabled", g.tpsEnabled);
+        g.tpsEnabled =
+            !DIF(g.macro.framerate, 240.f);
 
-  } else if (g.previousTps != 0.f) {
-    g.tpsEnabled = g.previousTpsEnabled;
-    g.tps = g.previousTps;
-    g.previousTps = 0.f;
-    g.mod->setSavedValue("macro_tps", g.tps);
-    g.mod->setSavedValue("macro_tps_enabled", g.tpsEnabled);
-  }
+        if (g.tpsEnabled)
+            g.tps = g.macro.framerate;
 
-  if (g.layer)
-    static_cast<RecordLayer *>(g.layer)->updateTPS();
-}
+        g.mod->setSavedValue(
+            "macro_tps",
+            g.tps
+        );
 
-int Macro::save(std::string author, std::string desc, std::string path,
-                bool json) {
-  auto &g = Global::get();
+        g.mod->setSavedValue(
+            "macro_tps_enabled",
+            g.tpsEnabled
+        );
+    }
+    else if (g.previousTps != 0.f) {
+        g.tpsEnabled =
+            g.previousTpsEnabled;
 
-  if (g.macro.inputs.empty())
-    return 31;
+        g.tps = g.previousTps;
+        g.previousTps = 0.f;
 
-  std::string extension = json ? ".gdr.json" : ".gdr";
+        g.mod->setSavedValue(
+            "macro_tps",
+            g.tps
+        );
 
-  int iterations = 0;
-
-  while (std::filesystem::exists(path + extension)) {
-    iterations++;
-
-    if (iterations > 1) {
-      int length = 3 + std::to_string(iterations - 1).length();
-      path.erase(path.length() - length, length);
+        g.mod->setSavedValue(
+            "macro_tps_enabled",
+            g.tpsEnabled
+        );
     }
 
-    path += fmt::format(" ({})", std::to_string(iterations));
-  }
-
-  path += extension;
-
-  log::debug("Saving macro to path: {}", path);
-
-  g.macro.author = author;
-  g.macro.description = desc;
-  g.macro.duration = g.macro.inputs.back().frame / g.macro.framerate;
-
-  // NakoMod: Save last recorded frame for Continue Botting
-  g.macro.lastRecordedFrame = g.macro.inputs.back().frame;
-
-#ifdef GEODE_IS_WINDOWS
-  std::wstring widePath = Utils::widen(path);
-
-  if (widePath == L"Widen Error")
-    return 30;
-
-  std::ofstream f(widePath, std::ios::binary);
-#else
-  std::ofstream f(path, std::ios::binary);
-#endif
-
-  if (!f)
-    f.open(path, std::ios::binary);
-
-  if (!f)
-    return 20;
-
-  std::vector<gdr::FrameFix> frameFixes = g.macro.frameFixes;
-
-  auto data = g.macro.exportData(json);
-
-  f.write(reinterpret_cast<const char *>(data.data()), data.size());
-
-  if (!f) {
-    f.close();
-    return 21;
-  }
-
-  if (!f)
-    return 22;
-
-  f.close();
-
-  return 0;
+    if (g.layer)
+        static_cast<RecordLayer*>(g.layer)->updateTPS();
 }
 
-// Lưu macro ra định dạng .gdr2 — song song với save(), không đụng code cũ.
-int Macro::saveGDR2(std::string author, std::string desc, std::string path) {
-  auto &g = Global::get();
+int Macro::save(
+    std::string author,
+    std::string desc,
+    std::string path,
+    bool json
+) {
+    auto& g = Global::get();
 
-  if (g.macro.inputs.empty())
-    return 31;
+    if (g.macro.inputs.empty())
+        return 31;
 
-  std::string extension = ".gdr2";
+    std::string extension =
+        json ? ".gdr.json" : ".gdr";
 
-  int iterations = 0;
+    int iterations = 0;
 
-  while (std::filesystem::exists(path + extension)) {
-    iterations++;
+    while (std::filesystem::exists(path + extension)) {
+        iterations++;
 
-    if (iterations > 1) {
-      int length = 3 + std::to_string(iterations - 1).length();
-      path.erase(path.length() - length, length);
+        if (iterations > 1) {
+            int length =
+                3 +
+                static_cast<int>(
+                    std::to_string(iterations - 1).length()
+                );
+
+            path.erase(
+                path.length() - length,
+                length
+            );
+        }
+
+        path += fmt::format(
+            " ({})",
+            iterations
+        );
     }
 
-    path += fmt::format(" ({})", std::to_string(iterations));
-  }
+    path += extension;
 
-  path += extension;
+    g.macro.author = author;
+    g.macro.description = desc;
 
-  log::debug("Saving GDR2 macro to path: {}", path);
+    g.macro.duration =
+        g.macro.inputs.back().frame /
+        g.macro.framerate;
 
-  g.macro.author = author;
-  g.macro.description = desc;
-  g.macro.duration = g.macro.inputs.back().frame / g.macro.framerate;
-
-  // NakoMod: Save last recorded frame for Continue Botting
-  g.macro.lastRecordedFrame = g.macro.inputs.back().frame;
+    g.macro.lastRecordedFrame =
+        g.macro.inputs.back().frame;
 
 #ifdef GEODE_IS_WINDOWS
-  std::wstring widePath = Utils::widen(path);
+    std::wstring widePath =
+        Utils::widen(path);
 
-  if (widePath == L"Widen Error")
-    return 30;
+    if (widePath == L"Widen Error")
+        return 30;
 
-  std::ofstream f(widePath, std::ios::binary);
+    std::ofstream f(
+        widePath,
+        std::ios::binary
+    );
 #else
-  std::ofstream f(path, std::ios::binary);
+    std::ofstream f(
+        path,
+        std::ios::binary
+    );
 #endif
 
-  if (!f)
-    f.open(path, std::ios::binary);
+    if (!f)
+        f.open(path, std::ios::binary);
 
-  if (!f)
-    return 20;
+    if (!f)
+        return 20;
 
-  std::vector<std::uint8_t> data = g.macro.exportGDR2();
+    auto data =
+        g.macro.exportData(json);
 
-  f.write(reinterpret_cast<const char *>(data.data()), data.size());
+    f.write(
+        reinterpret_cast<char const*>(
+            data.data()
+        ),
+        static_cast<std::streamsize>(
+            data.size()
+        )
+    );
 
-  if (!f) {
+    if (!f) {
+        f.close();
+        return 21;
+    }
+
     f.close();
-    return 21;
-  }
 
-  f.close();
-
-  return 0;
+    return 0;
 }
 
-bool Macro::loadXDFile(std::filesystem::path path) {
+int Macro::saveGDR2(
+    std::string author,
+    std::string desc,
+    std::string path
+) {
+    auto& g = Global::get();
 
-  Macro newMacro = Macro::XDtoGDR(path);
-  if (newMacro.description == "fail")
-    return false;
+    if (g.macro.inputs.empty())
+        return 31;
 
-  Global::get().macro = newMacro;
-  return true;
-}
+    std::string extension = ".gdr2";
+    int iterations = 0;
 
-Macro Macro::XDtoGDR(std::filesystem::path path) {
+    while (std::filesystem::exists(path + extension)) {
+        iterations++;
 
-  Macro newMacro;
-  newMacro.author = "N/A";
-  newMacro.description = "N/A";
-  newMacro.gameVersion = GEODE_GD_VERSION;
+        if (iterations > 1) {
+            int length =
+                3 +
+                static_cast<int>(
+                    std::to_string(iterations - 1).length()
+                );
+
+            path.erase(
+                path.length() - length,
+                length
+            );
+        }
+
+        path += fmt::format(
+            " ({})",
+            iterations
+        );
+    }
+
+    path += extension;
+
+    g.macro.author = author;
+    g.macro.description = desc;
+
+    g.macro.duration =
+        g.macro.inputs.back().frame /
+        g.macro.framerate;
+
+    g.macro.lastRecordedFrame =
+        g.macro.inputs.back().frame;
 
 #ifdef GEODE_IS_WINDOWS
-  std::ifstream file(Utils::widen(path.string()));
-#else
-  std::ifstream file(path.string());
-#endif
-  std::string line;
+    std::wstring widePath =
+        Utils::widen(path);
 
-  if (!file.is_open()) {
-    newMacro.description = "fail";
+    if (widePath == L"Widen Error")
+        return 30;
+
+    std::ofstream f(
+        widePath,
+        std::ios::binary
+    );
+#else
+    std::ofstream f(
+        path,
+        std::ios::binary
+    );
+#endif
+
+    if (!f)
+        f.open(path, std::ios::binary);
+
+    if (!f)
+        return 20;
+
+    auto data =
+        g.macro.exportGDR2();
+
+    f.write(
+        reinterpret_cast<char const*>(
+            data.data()
+        ),
+        static_cast<std::streamsize>(
+            data.size()
+        )
+    );
+
+    if (!f) {
+        f.close();
+        return 21;
+    }
+
+    f.close();
+
+    return 0;
+}
+
+bool Macro::loadXDFile(
+    std::filesystem::path path
+) {
+    Macro newMacro =
+        Macro::XDtoGDR(path);
+
+    if (newMacro.description == "fail")
+        return false;
+
+    Global::get().macro =
+        std::move(newMacro);
+
+    return true;
+}
+
+Macro Macro::XDtoGDR(
+    std::filesystem::path path
+) {
+    Macro newMacro;
+
+    newMacro.author = "N/A";
+    newMacro.description = "N/A";
+    newMacro.gameVersion = GEODE_GD_VERSION;
+
+#ifdef GEODE_IS_WINDOWS
+    std::ifstream file(
+        Utils::widen(path.string())
+    );
+#else
+    std::ifstream file(path);
+#endif
+
+    if (!file.is_open()) {
+        newMacro.description = "fail";
+        return newMacro;
+    }
+
+    std::string line;
+    float fpsMultiplier = 1.f;
+
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<std::string> action;
+
+        while (std::getline(ss, item, '|'))
+            action.push_back(item);
+
+        if (action.empty())
+            continue;
+
+        if (action.size() < 4) {
+            if (action[0] == "android") {
+                fpsMultiplier = 4.f;
+            }
+            else {
+                int fps = std::stoi(action[0]);
+                fpsMultiplier = 240.f / fps;
+            }
+
+            continue;
+        }
+
+        int frame = static_cast<int>(
+            std::round(
+                std::stoi(action[0]) *
+                fpsMultiplier
+            )
+        );
+
+        int button =
+            std::stoi(action[2]);
+
+        bool hold =
+            action[1] == "1";
+
+        bool player2 =
+            action[3] == "1";
+
+        bool posOnly =
+            action.size() > 4 &&
+            action[4] == "1";
+
+        if (!posOnly) {
+            newMacro.inputs.emplace_back(
+                frame,
+                button,
+                player2,
+                hold
+            );
+        }
+        else if (action.size() >= 13) {
+            cocos2d::CCPoint p1Pos =
+                ccp(
+                    std::stof(action[5]),
+                    std::stof(action[6])
+                );
+
+            cocos2d::CCPoint p2Pos =
+                ccp(
+                    std::stof(action[11]),
+                    std::stof(action[12])
+                );
+
+            newMacro.frameFixes.push_back({
+                frame,
+                {p1Pos, 0.f, false},
+                {p2Pos, 0.f, false}
+            });
+        }
+    }
+
     return newMacro;
-  }
-
-  bool firstIt = true;
-  bool andr = false;
-
-  float fpsMultiplier = 1.f;
-
-  while (std::getline(file, line)) {
-    std::string item;
-    std::stringstream ss(line);
-    std::vector<std::string> action;
-
-    while (std::getline(ss, item, '|'))
-      action.push_back(item);
-
-    if (action.size() < 4) {
-      if (action[0] == "android")
-        fpsMultiplier = 4.f;
-      else {
-        int fps = std::stoi(action[0]);
-        fpsMultiplier = 240.f / fps;
-      }
-
-      continue;
-    }
-
-    int frame = static_cast<int>(round(std::stoi(action[0]) * fpsMultiplier));
-    int button = std::stoi(action[2]);
-    bool hold = action[1] == "1";
-    bool player2 = action[3] == "1";
-    bool posOnly = action[4] == "1";
-
-    if (!posOnly)
-      newMacro.inputs.push_back(input(frame, button, player2, hold));
-    else {
-      cocos2d::CCPoint p1Pos = ccp(std::stof(action[5]), std::stof(action[6]));
-      cocos2d::CCPoint p2Pos =
-          ccp(std::stof(action[11]), std::stof(action[12]));
-
-      newMacro.frameFixes.push_back(
-          {frame, {p1Pos, 0.f, false}, {p2Pos, 0.f, false}});
-    }
-  }
-
-  file.close();
-
-  return newMacro;
 }
 
-bool Macro::isGDR2Data(std::vector<std::uint8_t> const &data) {
-  return data.size() >= 4 && data[0] == 'G' && data[1] == 'D' &&
-         data[2] == 'R';
+bool Macro::isGDR2Data(
+    std::vector<std::uint8_t> const& data
+) {
+    return data.size() >= 3 &&
+           data[0] == 'G' &&
+           data[1] == 'D' &&
+           data[2] == 'R';
 }
 
 std::optional<Macro> Macro::importGDR2(
-    std::vector<std::uint8_t> const &data) {
-  if (!isGDR2Data(data))
-    return std::nullopt;
-
-  GDR2Reader reader(data);
-
-  char magic[3]{};
-  if (!reader.readBytes(magic, sizeof(magic)))
-    return std::nullopt;
-
-  uint64_t version = 0;
-  if (!reader.readVarint(version) || version != 2)
-    return std::nullopt;
-
-  Macro macro;
-  std::string inputTag;
-
-  int gameVersion = 0;
-  double framerate = 240.0;
-  int replaySeed = 0;
-
-  if (!reader.readString(inputTag) || !reader.readString(macro.author) ||
-      !reader.readString(macro.description) || !reader.readBE(macro.duration) ||
-      !reader.readVarint(gameVersion) || !reader.readBE(framerate) ||
-      !reader.readVarint(replaySeed) || !reader.readVarint(macro.coins) ||
-      !reader.readBool(macro.ldm))
-    return std::nullopt;
-
-  macro.gameVersion = static_cast<float>(gameVersion);
-  macro.framerate = static_cast<float>(framerate);
-  static_cast<gdr::Replay<Macro, input> &>(macro).seed = replaySeed;
-  macro.seed = static_cast<uintptr_t>(replaySeed);
-
-  bool platformer = false;
-  if (!reader.readBool(platformer) || !reader.readString(macro.botInfo.name))
-    return std::nullopt;
-
-  macro.platformer = platformer;
-
-  int botVersion = 0;
-  if (!reader.readVarint(botVersion) || !reader.readVarint(macro.levelInfo.id) ||
-      !reader.readString(macro.levelInfo.name))
-    return std::nullopt;
-
-  macro.botInfo.version = std::to_string(botVersion);
-
-  size_t extensionSize = 0;
-  if (!reader.readVarint(extensionSize) || !reader.skip(extensionSize))
-    return std::nullopt;
-
-  size_t deathCount = 0;
-  if (!reader.readVarint(deathCount))
-    return std::nullopt;
-
-  uint64_t deathFrame = 0;
-  for (size_t i = 0; i < deathCount; ++i) {
-    uint64_t delta = 0;
-    if (!reader.readVarint(delta))
-      return std::nullopt;
-    deathFrame += delta;
-  }
-
-  size_t inputCount = 0;
-  size_t p1InputCount = 0;
-  if (!reader.readVarint(inputCount) || !reader.readVarint(p1InputCount) ||
-      p1InputCount > inputCount)
-    return std::nullopt;
-
-  macro.inputs.reserve(inputCount);
-
-  uint64_t p1Frame = 0;
-  uint64_t p2Frame = 0;
-  bool hasInputExtensions = !inputTag.empty();
-
-  for (size_t i = 0; i < inputCount; ++i) {
-    uint64_t packed = 0;
-    if (!reader.readVarint(packed))
-      return std::nullopt;
-
-    bool player2 = i >= p1InputCount;
-    uint64_t &frameBase = player2 ? p2Frame : p1Frame;
-
-    uint64_t delta = platformer ? (packed >> 3) : (packed >> 1);
-    int button = platformer ? static_cast<int>((packed >> 1) & 0b11) : 1;
-    bool down = (packed & 1) != 0;
-
-    frameBase += delta;
-    macro.inputs.emplace_back(static_cast<int>(frameBase), button, player2,
-                              down);
-
-    if (hasInputExtensions) {
-      size_t inputExtensionSize = 0;
-      if (!reader.readVarint(inputExtensionSize) ||
-          !reader.skip(inputExtensionSize))
+    std::vector<std::uint8_t> const& data
+) {
+    if (!isGDR2Data(data))
         return std::nullopt;
+
+    GDR2Reader reader(data);
+
+    char magic[3]{};
+
+    if (!reader.readBytes(
+        magic,
+        sizeof(magic)
+    ))
+        return std::nullopt;
+
+    uint64_t version = 0;
+
+    if (!reader.readVarint(version) ||
+        version != 2)
+        return std::nullopt;
+
+    Macro macro;
+    std::string inputTag;
+
+    int gameVersion = 0;
+    double framerate = 240.0;
+    int replaySeed = 0;
+
+    if (!reader.readString(inputTag) ||
+        !reader.readString(macro.author) ||
+        !reader.readString(macro.description) ||
+        !reader.readBE(macro.duration) ||
+        !reader.readVarint(gameVersion) ||
+        !reader.readBE(framerate) ||
+        !reader.readVarint(replaySeed) ||
+        !reader.readVarint(macro.coins) ||
+        !reader.readBool(macro.ldm))
+        return std::nullopt;
+
+    macro.gameVersion =
+        static_cast<float>(gameVersion);
+
+    macro.framerate =
+        static_cast<float>(framerate);
+
+    macro.seed =
+        static_cast<uintptr_t>(replaySeed);
+
+    static_cast<
+        gdr::Replay<Macro, input>&
+    >(macro).seed = replaySeed;
+
+    if (!reader.readBool(macro.platformer) ||
+        !reader.readString(macro.botInfo.name))
+        return std::nullopt;
+
+    int botVersion = 0;
+
+    if (!reader.readVarint(botVersion) ||
+        !reader.readVarint(macro.levelInfo.id) ||
+        !reader.readString(macro.levelInfo.name))
+        return std::nullopt;
+
+    macro.botInfo.version =
+        std::to_string(botVersion);
+
+    size_t extensionSize = 0;
+
+    if (!reader.readVarint(extensionSize) ||
+        !reader.skip(extensionSize))
+        return std::nullopt;
+
+    size_t deathCount = 0;
+
+    if (!reader.readVarint(deathCount))
+        return std::nullopt;
+
+    uint64_t deathFrame = 0;
+
+    for (size_t i = 0; i < deathCount; ++i) {
+        uint64_t delta = 0;
+
+        if (!reader.readVarint(delta))
+            return std::nullopt;
+
+        deathFrame += delta;
     }
-  }
 
-  macro.lastRecordedFrame =
-      macro.inputs.empty() ? 0 : static_cast<int>(macro.inputs.back().frame);
-  macro.xdBotMacro = macro.botInfo.name == "xdBot";
+    size_t inputCount = 0;
+    size_t p1InputCount = 0;
 
-  return macro;
+    if (!reader.readVarint(inputCount) ||
+        !reader.readVarint(p1InputCount) ||
+        p1InputCount > inputCount)
+        return std::nullopt;
+
+    macro.inputs.reserve(inputCount);
+
+    uint64_t p1Frame = 0;
+    uint64_t p2Frame = 0;
+
+    bool hasInputExtensions =
+        !inputTag.empty();
+
+    for (size_t i = 0; i < inputCount; ++i) {
+        uint64_t packed = 0;
+
+        if (!reader.readVarint(packed))
+            return std::nullopt;
+
+        bool player2 =
+            i >= p1InputCount;
+
+        uint64_t& frameBase =
+            player2 ? p2Frame : p1Frame;
+
+        uint64_t delta =
+            macro.platformer
+                ? (packed >> 3)
+                : (packed >> 1);
+
+        int button =
+            macro.platformer
+                ? static_cast<int>(
+                    (packed >> 1) & 0b11
+                )
+                : 1;
+
+        bool down =
+            (packed & 1) != 0;
+
+        frameBase += delta;
+
+        macro.inputs.emplace_back(
+            static_cast<int>(frameBase),
+            button,
+            player2,
+            down
+        );
+
+        if (hasInputExtensions) {
+            size_t inputExtensionSize = 0;
+
+            if (!reader.readVarint(
+                    inputExtensionSize
+                ) ||
+                !reader.skip(
+                    inputExtensionSize
+                ))
+                return std::nullopt;
+        }
+    }
+
+    macro.lastRecordedFrame =
+        macro.inputs.empty()
+            ? 0
+            : macro.inputs.back().frame;
+
+    macro.xdBotMacro =
+        macro.botInfo.name == "xdBot";
+
+    return macro;
 }
 
-// Đối xứng với importGDR2 — export instance hiện tại ra bytes .gdr2.
-std::vector<std::uint8_t> Macro::exportGDR2() {
-  GDR2Writer writer;
+std::vector<std::uint8_t>
+Macro::exportGDR2() {
+    GDR2Writer writer;
 
-  // magic + version — phải khớp check trong isGDR2Data/importGDR2
-  writer.writeBytes("GDR", 3);
-  writer.writeVarint<uint64_t>(2);
+    writer.writeBytes("GDR", 3);
+    writer.writeVarint<uint64_t>(2);
 
-  // Bot hiện không dùng input extension riêng -> tag rỗng
-  std::string inputTag = "";
-  writer.writeString(inputTag);
+    writer.writeString("");
 
-  writer.writeString(author);
-  writer.writeString(description);
-  writer.writeBE(duration);
+    writer.writeString(author);
+    writer.writeString(description);
+    writer.writeBE(duration);
 
-  writer.writeVarint(static_cast<int>(gameVersion));
-  writer.writeBE(static_cast<double>(framerate));
+    writer.writeVarint(
+        static_cast<int>(gameVersion)
+    );
 
-  int replaySeed = static_cast<gdr::Replay<Macro, input> &>(*this).seed;
-  writer.writeVarint(replaySeed);
+    writer.writeBE(
+        static_cast<double>(framerate)
+    );
 
-  writer.writeVarint(coins);
-  writer.writeBool(ldm);
-  writer.writeBool(this->platformer);
+    int replaySeed =
+        static_cast<
+            gdr::Replay<Macro, input>&
+        >(*this).seed;
 
-  writer.writeString(botInfo.name);
+    writer.writeVarint(replaySeed);
+    writer.writeVarint(coins);
+    writer.writeBool(ldm);
+    writer.writeBool(platformer);
 
-  int botVersion = 0;
-  try {
-    botVersion = std::stoi(botInfo.version);
-  } catch (...) {
-    botVersion = 0;
-  }
-  writer.writeVarint(botVersion);
+    writer.writeString(botInfo.name);
 
-  writer.writeVarint(levelInfo.id);
-  writer.writeString(levelInfo.name);
+    int botVersion = 0;
 
-  // Extension rỗng — chưa dùng
-  writer.writeVarint<size_t>(0);
-
-  // Deaths — chưa track trong struct hiện tại, ghi 0
-  writer.writeVarint<size_t>(0);
-
-  // Sắp lại: player 1 trước, player 2 sau (giống format đọc bởi importGDR2)
-  std::vector<input const *> p1Inputs;
-  std::vector<input const *> p2Inputs;
-  for (auto const &in : inputs) {
-    if (in.player2)
-      p2Inputs.push_back(&in);
-    else
-      p1Inputs.push_back(&in);
-  }
-
-  writer.writeVarint(inputs.size());
-  writer.writeVarint(p1Inputs.size());
-
-  auto writeGroup = [&](std::vector<input const *> const &group) {
-    uint64_t prevFrame = 0;
-    for (auto const *in : group) {
-      uint64_t delta = static_cast<uint64_t>(in->frame) - prevFrame;
-      prevFrame = static_cast<uint64_t>(in->frame);
-
-      uint64_t packed;
-      if (this->platformer)
-        packed = (delta << 3) | ((static_cast<uint64_t>(in->button) & 0b11) << 1) | (in->down ? 1 : 0);
-      else
-        packed = (delta << 1) | (in->down ? 1 : 0);
-
-      writer.writeVarint(packed);
-      // inputTag rỗng -> không ghi input extension
+    try {
+        botVersion =
+            std::stoi(botInfo.version);
     }
-  };
+    catch (...) {
+        botVersion = 0;
+    }
 
-  writeGroup(p1Inputs);
-  writeGroup(p2Inputs);
+    writer.writeVarint(botVersion);
+    writer.writeVarint(levelInfo.id);
+    writer.writeString(levelInfo.name);
 
-  return writer.data();
+    writer.writeVarint<size_t>(0);
+    writer.writeVarint<size_t>(0);
+
+    std::vector<input const*> p1Inputs;
+    std::vector<input const*> p2Inputs;
+
+    for (auto const& in : inputs) {
+        if (in.player2)
+            p2Inputs.push_back(&in);
+        else
+            p1Inputs.push_back(&in);
+    }
+
+    writer.writeVarint(inputs.size());
+    writer.writeVarint(p1Inputs.size());
+
+    auto writeGroup =
+        [&](std::vector<input const*> const& group) {
+            uint64_t prevFrame = 0;
+
+            for (auto const* in : group) {
+                uint64_t frame =
+                    static_cast<uint64_t>(
+                        std::max(in->frame, 0)
+                    );
+
+                uint64_t delta =
+                    frame - prevFrame;
+
+                prevFrame = frame;
+
+                uint64_t packed = 0;
+
+                if (platformer) {
+                    packed =
+                        (delta << 3) |
+                        (
+                            (
+                                static_cast<uint64_t>(
+                                    in->button
+                                ) & 0b11
+                            ) << 1
+                        ) |
+                        (in->down ? 1ull : 0ull);
+                }
+                else {
+                    packed =
+                        (delta << 1) |
+                        (in->down ? 1ull : 0ull);
+                }
+
+                writer.writeVarint(packed);
+            }
+        };
+
+    writeGroup(p1Inputs);
+    writeGroup(p2Inputs);
+
+    return writer.data();
 }
+
+// ============================================================
+// SLC3
+// ============================================================
+
+int Macro::saveSLC3(
+    std::string author,
+    std::string desc,
+    std::string path
+) {
+    auto& g = Global::get();
+
+    if (g.macro.inputs.empty())
+        return 31;
+
+    std::string extension = ".slc3";
+    int iterations = 0;
+
+    while (std::filesystem::exists(path + extension)) {
+        ++iterations;
+
+        if (iterations > 1) {
+            int length =
+                3 +
+                static_cast<int>(
+                    std::to_string(iterations - 1).length()
+                );
+
+            if (path.size() >=
+                static_cast<size_t>(length)) {
+                path.erase(
+                    path.length() - length,
+                    length
+                );
+            }
+        }
+
+        path += fmt::format(
+            " ({})",
+            iterations
+        );
+    }
+
+    path += extension;
+
+    g.macro.author = std::move(author);
+    g.macro.description = std::move(desc);
+
+    if (g.macro.framerate <= 0.f)
+        g.macro.framerate = 240.f;
+
+    g.macro.duration =
+        static_cast<double>(
+            g.macro.inputs.back().frame
+        ) /
+        static_cast<double>(
+            g.macro.framerate
+        );
+
+    g.macro.lastRecordedFrame =
+        g.macro.inputs.back().frame;
+
+    slc::v3::Replay<> replay;
+
+    replay.m_meta.m_tps =
+        static_cast<double>(
+            g.macro.framerate
+        );
+
+    replay.m_meta.m_seed =
+        static_cast<uint64_t>(
+            g.macro.seed
+        );
+
+    replay.m_meta.m_version = 2;
+    replay.m_meta.m_build = 0;
+    replay.m_meta.m_randomnessAlgorithm = 0;
+
+    slc::v3::ActionAtom atom;
+
+    using ActionType =
+        slc::v3::Action::ActionType;
+
+    /*
+     * SLC actions must be sorted by frame.
+     * Stable sort keeps same-frame input order.
+     */
+    std::vector<input const*> ordered;
+
+    ordered.reserve(
+        g.macro.inputs.size()
+    );
+
+    for (auto const& in : g.macro.inputs)
+        ordered.push_back(&in);
+
+    std::stable_sort(
+        ordered.begin(),
+        ordered.end(),
+        [](input const* a, input const* b) {
+            return a->frame < b->frame;
+        }
+    );
+
+    for (auto const* in : ordered) {
+        ActionType type;
+
+        switch (in->button) {
+        case 1:
+            type = ActionType::Jump;
+            break;
+
+        case 2:
+            type = ActionType::Left;
+            break;
+
+        case 3:
+            type = ActionType::Right;
+            break;
+
+        default:
+            log::warn(
+                "SLC3: unsupported button {} at frame {}",
+                in->button,
+                in->frame
+            );
+            continue;
+        }
+
+        auto result =
+            atom.addAction(
+                static_cast<uint64_t>(
+                    std::max(in->frame, 0)
+                ),
+                type,
+                in->down,
+                in->player2
+            );
+
+        if (!result) {
+            log::error(
+                "SLC3: failed to add action at frame {}: {}",
+                in->frame,
+                result.error().m_message
+            );
+            return 40;
+        }
+    }
+
+    /*
+     * TPS is already stored in metadata.
+     * Do not create a TPS action because the Macro struct
+     * has no special-action storage and metadata is enough
+     * for this round-trip.
+     */
+
+    replay.m_atoms.add(
+        typename slc::v3::DefaultRegistry::Variant{
+            std::move(atom)
+        }
+    );
+
+#ifdef GEODE_IS_WINDOWS
+    std::wstring widePath =
+        Utils::widen(path);
+
+    if (widePath == L"Widen Error")
+        return 30;
+
+    std::ofstream file(
+        widePath,
+        std::ios::binary
+    );
+#else
+    std::ofstream file(
+        path,
+        std::ios::binary
+    );
+#endif
+
+    if (!file)
+        file.open(
+            path,
+            std::ios::binary
+        );
+
+    if (!file)
+        return 20;
+
+    auto result =
+        replay.write(file);
+
+    if (!result) {
+        log::error(
+            "SLC3: failed to write replay: {}",
+            result.error().m_message
+        );
+
+        file.close();
+        return 21;
+    }
+
+    file.flush();
+
+    if (!file) {
+        file.close();
+        return 21;
+    }
+
+    file.close();
+
+    log::info(
+        "SLC3 saved successfully: {}",
+        path
+    );
+
+    return 0;
+}
+
+bool Macro::loadSLC3(
+    std::filesystem::path path
+) {
+#ifdef GEODE_IS_WINDOWS
+    std::ifstream file(
+        Utils::widen(path.string()),
+        std::ios::binary
+    );
+#else
+    std::ifstream file(
+        path,
+        std::ios::binary
+    );
+#endif
+
+    if (!file) {
+        log::error(
+            "SLC3: failed to open {}",
+            path.string()
+        );
+        return false;
+    }
+
+    auto result =
+        slc::v3::Replay<>::read(file);
+
+    if (!result) {
+        log::error(
+            "SLC3: failed to read {}: {}",
+            path.string(),
+            result.error().m_message
+        );
+        return false;
+    }
+
+    auto replay =
+        std::move(result.value());
+
+    slc::v3::ActionAtom const* actionAtom =
+        nullptr;
+
+    for (auto const& atom :
+         replay.m_atoms.m_atoms) {
+
+        if (auto const* action =
+            std::get_if<
+                slc::v3::ActionAtom
+            >(&atom)) {
+
+            actionAtom = action;
+            break;
+        }
+    }
+
+    if (!actionAtom) {
+        log::error(
+            "SLC3: no ActionAtom found"
+        );
+        return false;
+    }
+
+    Macro newMacro;
+
+    newMacro.author = "N/A";
+    newMacro.description = "N/A";
+    newMacro.gameVersion =
+        GEODE_GD_VERSION;
+
+    newMacro.framerate =
+        static_cast<float>(
+            replay.m_meta.m_tps
+        );
+
+    if (newMacro.framerate <= 0.f)
+        newMacro.framerate = 240.f;
+
+    newMacro.seed =
+        static_cast<uintptr_t>(
+            replay.m_meta.m_seed
+        );
+
+    static_cast<
+        gdr::Replay<Macro, input>&
+    >(newMacro).seed =
+        static_cast<int>(
+            replay.m_meta.m_seed
+        );
+
+    using ActionType =
+        slc::v3::Action::ActionType;
+
+    newMacro.inputs.reserve(
+        actionAtom->m_actions.size()
+    );
+
+    for (auto const& action :
+         actionAtom->m_actions) {
+
+        if (!action.isPlayer())
+            continue;
+
+        int button;
+
+        switch (action.m_type) {
+        case ActionType::Jump:
+            button = 1;
+            break;
+
+        case ActionType::Left:
+            button = 2;
+            break;
+
+        case ActionType::Right:
+            button = 3;
+            break;
+
+        default:
+            continue;
+        }
+
+        newMacro.inputs.emplace_back(
+            static_cast<int>(
+                action.m_frame
+            ),
+            button,
+            action.m_player2,
+            action.m_holding
+        );
+    }
+
+    std::stable_sort(
+        newMacro.inputs.begin(),
+        newMacro.inputs.end(),
+        [](input const& a, input const& b) {
+            return a.frame < b.frame;
+        }
+    );
+
+    newMacro.lastRecordedFrame =
+        newMacro.inputs.empty()
+            ? 0
+            : newMacro.inputs.back().frame;
+
+    if (!newMacro.inputs.empty()) {
+        newMacro.duration =
+            static_cast<double>(
+                newMacro.lastRecordedFrame
+            ) /
+            static_cast<double>(
+                newMacro.framerate
+            );
+    }
+    else {
+        newMacro.duration = 0.0;
+    }
+
+    newMacro.xdBotMacro = false;
+
+    Global::get().macro =
+        std::move(newMacro);
+
+    log::info(
+        "SLC3 loaded: {} inputs, {} TPS",
+        Global::get().macro.inputs.size(),
+        Global::get().macro.framerate
+    );
+
+    return true;
+}
+
+// ============================================================
+// State
+// ============================================================
 
 void Macro::resetVariables() {
-  auto &g = Global::get();
+    auto& g = Global::get();
 
-  g.ignoreFrame = -1;
-  g.ignoreJumpButton = -1;
+    g.ignoreFrame = -1;
+    g.ignoreJumpButton = -1;
 
-  g.delayedFrameReleaseMain[0] = -1;
-  g.delayedFrameReleaseMain[1] = -1;
+    g.delayedFrameReleaseMain[0] = -1;
+    g.delayedFrameReleaseMain[1] = -1;
 
-  g.delayedFrameInput[0] = -1;
-  g.delayedFrameInput[1] = -1;
+    g.delayedFrameInput[0] = -1;
+    g.delayedFrameInput[1] = -1;
 
-  g.addSideHoldingMembers[0] = false;
-  g.addSideHoldingMembers[1] = false;
-  for (int x = 0; x < 2; x++) {
-    for (int y = 0; y < 2; y++)
-      g.delayedFrameRelease[x][y] = -1;
-  }
+    g.addSideHoldingMembers[0] = false;
+    g.addSideHoldingMembers[1] = false;
+
+    for (int x = 0; x < 2; ++x) {
+        for (int y = 0; y < 2; ++y)
+            g.delayedFrameRelease[x][y] = -1;
+    }
 }
 
 void Macro::resetState(bool cp) {
-  auto &g = Global::get();
+    auto& g = Global::get();
 
-  g.restart = false;
-  g.state = state::none;
+    g.restart = false;
+    g.state = state::none;
 
-  if (!cp)
-    g.checkpoints.clear();
+    if (!cp)
+        g.checkpoints.clear();
 
-  Interface::updateLabels();
-  Interface::updateButtons();
+    Interface::updateLabels();
+    Interface::updateButtons();
 
-  Macro::resetVariables();
+    Macro::resetVariables();
 }
 
 void Macro::togglePlaying() {
-  if (Global::hasIncompatibleMods())
-    return;
+    if (Global::hasIncompatibleMods())
+        return;
 
-  auto &g = Global::get();
+    auto& g = Global::get();
 
-  if (g.layer) {
-    static_cast<RecordLayer *>(g.layer)->playing->toggle(Global::get().state !=
-                                                         state::playing);
-    static_cast<RecordLayer *>(g.layer)->togglePlaying(nullptr);
-  } else {
-    RecordLayer *layer = RecordLayer::create();
-    layer->togglePlaying(nullptr);
-    layer->onClose(nullptr);
-  }
+    if (g.layer) {
+        auto* layer =
+            static_cast<RecordLayer*>(
+                g.layer
+            );
+
+        layer->playing->toggle(
+            g.state != state::playing
+        );
+
+        layer->togglePlaying(nullptr);
+    }
+    else {
+        auto* layer =
+            RecordLayer::create();
+
+        layer->togglePlaying(nullptr);
+        layer->onClose(nullptr);
+    }
 }
 
 void Macro::toggleRecording() {
-  if (Global::hasIncompatibleMods())
-    return;
+    if (Global::hasIncompatibleMods())
+        return;
 
-  auto &g = Global::get();
+    auto& g = Global::get();
 
-  if (g.layer) {
-    static_cast<RecordLayer *>(g.layer)->recording->toggle(
-        Global::get().state != state::recording);
-    static_cast<RecordLayer *>(g.layer)->toggleRecording(nullptr);
-  } else {
-    RecordLayer *layer = RecordLayer::create();
-    layer->toggleRecording(nullptr);
-    layer->onClose(nullptr);
-  }
+    if (g.layer) {
+        auto* layer =
+            static_cast<RecordLayer*>(
+                g.layer
+            );
+
+        layer->recording->toggle(
+            g.state != state::recording
+        );
+
+        layer->toggleRecording(nullptr);
+    }
+    else {
+        auto* layer =
+            RecordLayer::create();
+
+        layer->toggleRecording(nullptr);
+        layer->onClose(nullptr);
+    }
 }
 
 bool Macro::shouldStep() {
-  auto &g = Global::get();
+    auto& g = Global::get();
 
-  if (g.stepFrame)
-    return true;
-  if (Global::getCurrentFrame() == 0)
-    return true;
+    if (g.stepFrame)
+        return true;
 
-  // if (g.ignoreFrame != -1) return true;
-  // if (g.ignoreJumpButton != -1) return true;
+    if (Global::getCurrentFrame() == 0)
+        return true;
 
-  // if (g.delayedFrameReleaseMain[0] != -1) return true;
-  // if (g.delayedFrameReleaseMain[1] != -1) return true;
-
-  // if (g.delayedFrameInput[0] != -1) return true;
-  // if (g.delayedFrameInput[1] != -1) return true;
-
-  // for (int x = 0; x < 2; x++) {
-  //     for (int y = 0; y < 2; y++) {
-  //         if (g.delayedFrameRelease[x][y] != -1) return true;
-  //     }
-  // }
-
-  return false;
+    return false;
 }
