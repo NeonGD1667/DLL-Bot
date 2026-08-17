@@ -38,6 +38,7 @@ add_library(${PROJECT_NAME} SHARED
     src/ui/macro_cell.cpp
     src/ui/clickbot_layer.cpp
     src/ui/button_setting.cpp
+    src/ui/macro_index_layer.cpp
 
     src/practice_fixes/input.cpp
     src/practice_fixes/player.cpp
