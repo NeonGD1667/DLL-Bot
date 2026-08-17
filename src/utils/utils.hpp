@@ -1,10 +1,13 @@
 #pragma once
 
 #include <Geode/Geode.hpp>
+
 #include <ctime>
 #include <filesystem>
 #include <string>
 #include <vector>
+
+using namespace geode::prelude;
 
 class Utils {
 public:
