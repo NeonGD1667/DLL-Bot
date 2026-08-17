@@ -1,8 +1,8 @@
 #ifndef _SLC_V3_ATOM_HPP
 #define _SLC_V3_ATOM_HPP
 
-#include ".../formats/v3/error.hpp"
-#include ".../util.hpp"
+#include "formats/v3/error.hpp"
+#include "util.hpp"
 
 #include <array>
 #include <concepts>

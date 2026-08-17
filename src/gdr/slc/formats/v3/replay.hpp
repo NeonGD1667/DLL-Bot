@@ -1,17 +1,17 @@
 #ifndef _SLC_V3_REPLAY_HPP
 #define _SLC_V3_REPLAY_HPP
 
-#include ".../formats/v3/atom.hpp"
-#include ".../formats/v3/builtin.hpp"
-#include ".../formats/v3/error.hpp"
-#include ".../formats/v3/metadata.hpp"
+#include "formats/v3/atom.hpp"
+#include "formats/v3/builtin.hpp"
+#include "formats/v3/error.hpp"
+#include "formats/v3/metadata.hpp"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused"
-#include ".../formats/v3/section.hpp"
+#include "formats/v3/section.hpp"
 #pragma GCC diagnostic pop
 
-#include ".../util.hpp"
+#include "util.hpp"
 
 #include <array>
 #include <cassert>
