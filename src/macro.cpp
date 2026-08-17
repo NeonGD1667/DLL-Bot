@@ -8,6 +8,14 @@
 #include <optional>
 #include <span>
 
+
+#include <fstream>
+#include <sstream>
+#include <cmath>
+#include <filesystem>
+
+#include "gdr/slc/slc.hpp"
+
 #include <Geode/modify/PlayLayer.hpp>
 
 namespace {
