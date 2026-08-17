@@ -1,7 +1,7 @@
 #pragma once
 
 #include "gdr/gdr.hpp"
-#include "utils/utils.hpp"
+
 
 #define SLC_NO_DEFAULT
 #include "gdr/slc/slc.hpp"
