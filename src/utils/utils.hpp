@@ -1,7 +1,6 @@
 #pragma once
 
 #include <Geode/Geode.hpp>
-
 #include <ctime>
 #include <filesystem>
 #include <string>
@@ -19,9 +18,7 @@ public:
 
     static std::string getTexture();
 
-    static std::string getSimplifiedString(
-        std::string str
-    );
+    static std::string getSimplifiedString(std::string str);
 
     static void setBackgroundColor(
         cocos2d::extension::CCScale9Sprite* bg
@@ -37,23 +34,15 @@ public:
         const std::string& destinationPath
     );
 
-    static std::string narrow(
-        const wchar_t* str
-    );
+    static std::string narrow(const wchar_t* str);
 
-    static inline auto narrow(
-        const std::wstring& str
-    ) {
+    static inline auto narrow(const std::wstring& str) {
         return narrow(str.c_str());
     }
 
-    static std::wstring widen(
-        const char* str
-    );
+    static std::wstring widen(const char* str);
 
-    static inline auto widen(
-        const std::string& str
-    ) {
+    static inline auto widen(const std::string& str) {
         return widen(str.c_str());
     }
 };
