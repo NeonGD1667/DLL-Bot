@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../includes.hpp"
+#include "../utils/utils.hpp"
 
 const std::vector<std::string> indexToID = {
     "button_off", "button_advance_frame", "button_speedhack"
