@@ -3,6 +3,7 @@
 #include "../includes.hpp"
 #include "../hacks/clickbot.hpp"
 #include "record_layer.hpp"
+#include "../utils/utils.hpp"
 
 const std::unordered_map<int, std::string> buttons = { {1, ""} };
 
