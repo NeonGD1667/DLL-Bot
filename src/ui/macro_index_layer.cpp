@@ -5,7 +5,7 @@ using namespace geode::utils::web;
 MacroIndexLayer* MacroIndexLayer::create() {
     auto ret = new MacroIndexLayer();
 
-    if (ret->init(340.f, 260.f)) {
+    if (ret->init(380.f, 320.f)) {
         ret->autorelease();
         return ret;
     }
@@ -27,15 +27,17 @@ void MacroIndexLayer::open() {
 bool MacroIndexLayer::setup() {
     setTitle("Macro Index");
 
+    // Search
     searchInput = TextInput::create(
-        240.f,
-        "Search level name...",
+        275.f,
+        "Search level / macro...",
         "chatFont.fnt"
     );
-    searchInput->setPosition({-20.f, 95.f});
+    searchInput->setPosition({-25.f, 130.f});
     searchInput->setDelegate(this);
     m_mainLayer->addChild(searchInput);
 
+    // Refresh
     CCSprite* refreshSpr =
         CCSprite::createWithSpriteFrameName("GJ_updateBtn_001.png");
 
@@ -49,18 +51,20 @@ bool MacroIndexLayer::setup() {
 
     CCMenu* refreshMenu = CCMenu::create();
     refreshMenu->addChild(refreshBtn);
-    refreshMenu->setPosition({130.f, 95.f});
+    refreshMenu->setPosition({150.f, 130.f});
     m_mainLayer->addChild(refreshMenu);
 
+    // Status
     statusLabel = CCLabelBMFont::create(
         "Loading index...",
         "chatFont.fnt"
     );
     statusLabel->setScale(0.5f);
     statusLabel->setOpacity(140);
-    statusLabel->setPosition({0.f, 75.f});
+    statusLabel->setPosition({0.f, 106.f});
     m_mainLayer->addChild(statusLabel);
 
+    // Results
     resultsLayer = CCLayer::create();
     resultsLayer->setPosition({0.f, 0.f});
     m_mainLayer->addChild(resultsLayer);
@@ -76,6 +80,7 @@ void MacroIndexLayer::onRefresh(CCObject*) {
 
 void MacroIndexLayer::fetchIndex() {
     statusLabel->setString("Loading index...");
+
     clearResults();
     allEntries.clear();
 
@@ -244,20 +249,22 @@ void MacroIndexLayer::populateResults() {
     resultNodes.clear();
 
     constexpr size_t maxShown = 5;
-    float yStart = 55.f;
-    float rowHeight = 32.f;
+
+    // Giữ khoảng cách vừa đủ cho popup 380x320.
+    float yStart = 78.f;
+    float rowHeight = 45.f;
 
     for (
         size_t i = 0;
         i < filteredEntries.size() && i < maxShown;
         i++
     ) {
-        MacroEntry const& r =
-            filteredEntries[i];
+        MacroEntry const& r = filteredEntries[i];
 
         float y =
             yStart - (i * rowHeight);
 
+        // Macro name
         CCLabelBMFont* nameLbl =
             CCLabelBMFont::create(
                 r.levelName.c_str(),
@@ -267,18 +274,18 @@ void MacroIndexLayer::populateResults() {
         nameLbl->setAnchorPoint({0.f, 0.5f});
         nameLbl->setScale(0.42f);
         nameLbl->setPosition(
-            {-155.f, y + 6.f}
+            {-160.f, y + 8.f}
         );
 
         resultsLayer->addChild(nameLbl);
         resultNodes.push_back(nameLbl);
 
+        // Author + level
         std::string metaStr =
             fmt::format(
-                "{} | by {} | {:.1f}★",
-                r.difficulty,
+                "by {} \u2022 Level {}",
                 r.uploader,
-                r.rating
+                r.levelId
             );
 
         CCLabelBMFont* metaLbl =
@@ -289,18 +296,19 @@ void MacroIndexLayer::populateResults() {
 
         metaLbl->setAnchorPoint({0.f, 0.5f});
         metaLbl->setScale(0.35f);
-        metaLbl->setOpacity(140);
+        metaLbl->setOpacity(160);
         metaLbl->setPosition(
-            {-155.f, y - 6.f}
+            {-160.f, y - 9.f}
         );
 
         resultsLayer->addChild(metaLbl);
         resultNodes.push_back(metaLbl);
 
+        // Download button
         ButtonSprite* dlSpr =
             ButtonSprite::create("Download");
 
-        dlSpr->setScale(0.4f);
+        dlSpr->setScale(0.42f);
 
         CCMenuItemSpriteExtra* dlBtn =
             CCMenuItemSpriteExtra::create(
