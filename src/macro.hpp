@@ -4,7 +4,6 @@
 #include "gdr/gdr.hpp"
 #include "utils/utils.hpp"
 
-
 using namespace geode::prelude;
 
 #define DIF(a, b) (std::fabs((a) - (b)) > 0.001f)
@@ -53,8 +52,8 @@ public:
 
     static int save(std::string author, std::string desc, std::string path, bool json = false);
 
-    // Lưu macro ra định dạng .gdr2 (binary mới). Không đụng tới save() cũ,
-    // dùng song song khi cần xuất ra .gdr2 thay vì .gdr/.gdr.json.
+    // Lưu macro ra định dạng .gdr2 (binary mới). Song song với save() cũ,
+    // không đụng tới bất kỳ chỗ gọi save() nào khác.
     static int saveGDR2(std::string author, std::string desc, std::string path);
 
     static void autoSave(GJGameLevel* level, int number);
@@ -253,7 +252,6 @@ struct PlayerData {
     float m_xVelocityRelated2;
     bool m_isDashing;
     int m_dashFireFrame;
-    int m_unk9e8;
     int m_groundObjectMaterial;
     float m_vehicleSize;
     float m_playerSpeed;
