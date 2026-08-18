@@ -1,87 +1,91 @@
 # Upcoming Features
 
-### Renderer
+## Renderer
 
-* Added One-pass rendering for simultaneous audio and video rendering *(TEST)*.
-* Completely overhauled the rendering system.
-* Added Zero-Copy and CUDA acceleration.
-* Added dedicated hardware acceleration for AMD GPUs.
-* Rendering is up to 10× faster.
-* Optimized rendering for extremely large macros *(tested at 248k TPS and 2M+ inputs)*.
-* Added real-time 4K mobile rendering *(currently locked at 1× speed)*.
-* Added New FFmpeg API Render *(TEST)*.
-* Added FFmpeg library loading and fixed `ERROR_MOD_NOT_FOUND`.
-* Added automatic resolution selection for mobile rendering.
-* Added proper codec information for Windows and Mobile architectures.
-* Added unlimited render presets.
-* Added Render HUD with real-time rendering speed.
-* Added render preview with custom arguments *(PC only)*.
-* Added fast video filters.
-* Improved rendering smoothness and performance.
-* Fixed rendering crashes on heavy levels.
-* Fixed rendering freezes and finalization issues.
-* Fixed rendering stopping abruptly at the end of macros.
-* Fixed robot animations during rendering.
-* Fixed numerous mobile rendering issues.
-* Fixed mobile AutoResize resolution detection.
-* Fixed mobile resolution flipping through the Help button.
-* Fixed various rendering and stability issues.
+- [ ] Overhaul the rendering system.
+- [ ] Add one-pass rendering for simultaneous audio and video rendering.
+- [ ] Add Zero-Copy rendering.
+- [ ] Add CUDA acceleration.
+- [ ] Add dedicated hardware acceleration for AMD GPUs.
+- [ ] Optimize rendering for extremely large macros.
+- [ ] Add real-time 4K mobile rendering.
+- [ ] Add new FFmpeg API rendering.
+- [ ] Add FFmpeg library loading improvements.
+- [ ] Add automatic resolution selection for mobile rendering.
+- [ ] Add proper codec information for Windows and mobile architectures.
+- [ ] Add unlimited render presets.
+- [ ] Add Render HUD with real-time rendering speed.
+- [ ] Add render preview with custom arguments (PC only).
+- [ ] Add fast video filters.
+- [ ] Improve rendering smoothness and performance.
+- [ ] Fix rendering crashes on heavy levels.
+- [ ] Fix rendering freezes and finalization issues.
+- [ ] Fix rendering stopping abruptly at the end of macros.
+- [ ] Fix robot animations during rendering.
+- [ ] Fix mobile rendering issues.
+- [ ] Fix mobile AutoResize resolution detection.
 
-### Macro System
+## Macro System
 
-* Added new compressed `.cml` macro format.
-* Updated `.cml` compression.
-* Fixed `.cml` corruption at high frame counts and far coordinates.
-* Fully fixed `.slc` format.
-* Added export support for `.cml`, `.json`, `.gdr`, and `.gdr2`.
-* Added support for tcBot and Silicate macro formats.
-* Completely updated Vanilla macro handling.
-* Fixed sub-frame macros when using CBS.
-* Fixed random deaths and missed initial inputs.
-* Fixed ghost Release inputs on restart and respawn.
-* Fixed Practice Fix ghost inputs breaking Wave Trail.
-* Fixed Practice Fix breaking bot execution.
-* Fixed input holding on level restart and eliminated high-CPS bursts.
-* Fixed massive 1-frame CPS bursts when playing macros from StartPos.
-* Heavily improved AutoSave.
-* Added Macro Button in the Editor.
+- [ ] Complete Macro Index.
+- [ ] Add a scalable macro format registration system.
+- [ ] Add support for additional macro formats.
+- [ ] Improve macro format detection.
+- [ ] Improve macro import/export handling.
+- [ ] Improve Vanilla macro handling.
+- [ ] Improve AutoSave.
+- [ ] Add Macro Button in the Editor.
+- [ ] Add macro swapping during playback.
+- [ ] Fix sub-frame macro handling.
+- [ ] Fix random deaths and missed initial inputs.
+- [ ] Fix ghost Release inputs on restart and respawn.
+- [ ] Fix input holding on level restart.
+- [ ] Fix high-CPS bursts during macro playback.
+- [ ] Fix StartPos playback issues.
 
-### Botting & Gameplay
+## Botting & Gameplay
 
-* Added AutoStraightFly.
-* Added AutoWaveSpam.
-* Heavily improved PathFinder.
-* Added automatic checkpoint placement to PathFinder *(PC only)*.
-* Fixed PathFinder freezing/hanging on mobile devices.
-* Added FakeTaps during macro playback.
-* Reduced the FakeTaps circle size for more realistic-looking clicks.
-* Updated TPS Bypass.
-* Added Sync TPS With FPS.
-* Fixed TPS Bypass status display.
-* Updated Frame Stepper with proper Hold support.
-* Restored Show Trajectory with several fixes.
-* Added support for all game modes *(Wave and Ball may still have issues)*.
-* Dual Portals are currently unsupported and may break.
+- [ ] Add AutoStraightFly.
+- [ ] Add AutoWaveSpam.
+- [ ] Improve PathFinder.
+- [ ] Add automatic checkpoint placement to PathFinder (PC only).
+- [ ] Fix PathFinder freezing/hanging on mobile.
+- [ ] Add FakeTaps during macro playback.
+- [ ] Improve FakeTaps visuals.
+- [ ] Update TPS Bypass.
+- [ ] Add Sync TPS With FPS.
+- [ ] Improve TPS Bypass status display.
+- [ ] Improve Frame Stepper with proper Hold support.
+- [ ] Restore and improve Show Trajectory.
+- [ ] Improve support for all game modes.
+- [ ] Improve Dual Portal handling.
 
-### Interface
+## Interface
 
-* Updated the interface with a more colorful design.
-* Added animated gradient glow balls inspired by HyperOS 3.0.
-* Added menu background opacity settings.
-* Updated Blur with configurable target areas.
-* Added official Discord server button.
-* Added Version Manager with version downgrading support.
-* Added a new Dev-beta/Main release system.
-* Added proper codec information for different architectures.
+- [ ] Further improve the interface design.
+- [ ] Add animated gradient effects.
+- [ ] Add menu background opacity settings.
+- [ ] Improve Blur with configurable target areas.
+- [ ] Add official Discord server button.
+- [ ] Add Version Manager with version downgrading support.
+- [ ] Add Dev-Beta / Main release channels.
 
-### Platform & Compatibility
+## Platform & Compatibility
 
-* Added Windows and Android 32/64-bit builds.
-* Added iOS build support.
-* Updated to Geode SDK 5.8.2 *(loader update required)*.
-* Fixed numerous GitHub issues and general stability bugs.
-* Improved compatibility across supported platforms.
+- [ ] Improve Windows compatibility.
+- [ ] Improve Android ARM64 compatibility.
+- [ ] Improve Android ARMv7 compatibility.
+- [ ] Improve iOS support.
+- [ ] Improve macOS support.
+- [ ] Improve cross-platform macro compatibility.
+- [ ] Fix platform-specific rendering issues.
+- [ ] Improve overall stability.
 
-### Removed
+## Documentation
 
-* Removed Ghost Playback as obsolete.
+- [ ] Update README.
+- [ ] Update About page.
+- [ ] Keep changelog synchronized with releases.
+- [ ] Document supported macro formats.
+- [ ] Document Macro Index.
+- [ ] Document rendering system.
