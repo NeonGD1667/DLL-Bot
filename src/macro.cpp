@@ -1146,7 +1146,7 @@ int Macro::saveSLC2(
         auto result =
             replay.addInput(
                 static_cast<uint64_t>(
-                    std::max(in->frame, 0)
+                    std::max(in->frame, uint32_t{0})
                 ),
                 type,
                 in->player2,
