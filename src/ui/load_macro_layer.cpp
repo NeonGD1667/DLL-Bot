@@ -478,9 +478,10 @@ void LoadMacroLayer::addList(bool refresh, float prevScroll) {
 
   for (int i = start; i != end; i += step) {
 
-    if (macros[i].extension() != ".gdr" && macros[i].extension() != ".gdr2" &&
-        macros[i].extension() != ".xd" && macros[i].extension() != ".json")
-      continue;
+   if (macros[i].extension() != ".gdr" && macros[i].extension() != ".gdr2" &&
+    macros[i].extension() != ".xd" && macros[i].extension() != ".json" &&
+    macros[i].extension() != ".slc2" && macros[i].extension() != ".slc3")
+  continue;
 
     std::string name = macros[i].filename().string().substr(
         0, macros[i].filename().string().find_last_of('.'));
