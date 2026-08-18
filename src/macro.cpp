@@ -1025,6 +1025,345 @@ Macro::exportGDR2() {
 }
 
 // ============================================================
+// SLC2
+// ============================================================
+
+int Macro::saveSLC2(
+    std::string author,
+    std::string desc,
+    std::string path
+) {
+    auto& g = Global::get();
+
+    if (g.macro.inputs.empty())
+        return 31;
+
+    std::string extension = ".slc2";
+    int iterations = 0;
+
+    while (std::filesystem::exists(path + extension)) {
+        ++iterations;
+
+        if (iterations > 1) {
+            int length =
+                3 +
+                static_cast<int>(
+                    std::to_string(iterations - 1).length()
+                );
+
+            if (path.size() >= static_cast<size_t>(length)) {
+                path.erase(
+                    path.length() - length,
+                    length
+                );
+            }
+        }
+
+        path += fmt::format(
+            " ({})",
+            iterations
+        );
+    }
+
+    path += extension;
+
+    g.macro.author = std::move(author);
+    g.macro.description = std::move(desc);
+
+    if (g.macro.framerate <= 0.f)
+        g.macro.framerate = 240.f;
+
+    g.macro.duration =
+        static_cast<double>(
+            g.macro.inputs.back().frame
+        ) /
+        static_cast<double>(
+            g.macro.framerate
+        );
+
+    g.macro.lastRecordedFrame =
+        g.macro.inputs.back().frame;
+
+    slc::v2::Replay<> replay;
+
+    replay.m_tps =
+        static_cast<double>(
+            g.macro.framerate
+        );
+
+    /*
+     * SLC2 requires inputs to be added in non-decreasing
+     * frame order.
+     *
+     * Macro input order is normally already chronological,
+     * but sorting here makes the exporter safe.
+     */
+    std::vector<input const*> ordered;
+
+    ordered.reserve(
+        g.macro.inputs.size()
+    );
+
+    for (auto const& in : g.macro.inputs)
+        ordered.push_back(&in);
+
+    std::stable_sort(
+        ordered.begin(),
+        ordered.end(),
+        [](input const* a, input const* b) {
+            return a->frame < b->frame;
+        }
+    );
+
+    using InputType =
+        slc::v2::Input::InputType;
+
+    for (auto const* in : ordered) {
+        InputType type;
+
+        switch (in->button) {
+        case 1:
+            type = InputType::Jump;
+            break;
+
+        case 2:
+            type = InputType::Left;
+            break;
+
+        case 3:
+            type = InputType::Right;
+            break;
+
+        default:
+            log::warn(
+                "SLC2: unsupported button {} at frame {}",
+                in->button,
+                in->frame
+            );
+            continue;
+        }
+
+        auto result =
+            replay.addInput(
+                static_cast<uint64_t>(
+                    std::max(in->frame, 0)
+                ),
+                type,
+                in->player2,
+                in->down
+            );
+
+        if (!result) {
+            log::error(
+                "SLC2: failed to add input at frame {}",
+                in->frame
+            );
+
+            return 40;
+        }
+    }
+
+#ifdef GEODE_IS_WINDOWS
+    std::wstring widePath =
+        Utils::widen(path);
+
+    if (widePath == L"Widen Error")
+        return 30;
+
+    std::ofstream file(
+        widePath,
+        std::ios::binary
+    );
+#else
+    std::ofstream file(
+        path,
+        std::ios::binary
+    );
+#endif
+
+    if (!file)
+        file.open(
+            path,
+            std::ios::binary
+        );
+
+    if (!file)
+        return 20;
+
+    replay.write(file);
+
+    if (!file) {
+        file.close();
+
+        log::error(
+            "SLC2: failed to write replay {}",
+            path
+        );
+
+        return 21;
+    }
+
+    file.flush();
+
+    if (!file) {
+        file.close();
+        return 21;
+    }
+
+    file.close();
+
+    log::info(
+        "SLC2 saved successfully: {}",
+        path
+    );
+
+    return 0;
+}
+
+bool Macro::loadSLC2(
+    std::filesystem::path path
+) {
+#ifdef GEODE_IS_WINDOWS
+    std::ifstream file(
+        Utils::widen(path.string()),
+        std::ios::binary
+    );
+#else
+    std::ifstream file(
+        path,
+        std::ios::binary
+    );
+#endif
+
+    if (!file) {
+        log::error(
+            "SLC2: failed to open {}",
+            path.string()
+        );
+        return false;
+    }
+
+    auto result =
+        slc::v2::Replay<>::read(file);
+
+    if (!result) {
+        log::error(
+            "SLC2: failed to read {}",
+            path.string()
+        );
+        return false;
+    }
+
+    auto replay =
+        std::move(result.value());
+
+    Macro newMacro;
+
+    newMacro.author = "N/A";
+    newMacro.description = "N/A";
+    newMacro.gameVersion =
+        GEODE_GD_VERSION;
+
+    newMacro.framerate =
+        static_cast<float>(
+            replay.m_tps
+        );
+
+    if (newMacro.framerate <= 0.f)
+        newMacro.framerate = 240.f;
+
+    using InputType =
+        slc::v2::Input::InputType;
+
+    auto const& inputs =
+        replay.getInputs();
+
+    newMacro.inputs.reserve(
+        inputs.size()
+    );
+
+    for (auto const& action : inputs) {
+        int button = 0;
+
+        switch (action.m_button) {
+        case InputType::Jump:
+            button = 1;
+            break;
+
+        case InputType::Left:
+            button = 2;
+            break;
+
+        case InputType::Right:
+            button = 3;
+            break;
+
+        /*
+         * SLC2 supports more than normal GD inputs:
+         *
+         * Restart
+         * RestartFull
+         * Death
+         * TPS
+         *
+         * Macro currently has no matching input type for
+         * these, so ignore them.
+         */
+        default:
+            continue;
+        }
+
+        newMacro.inputs.emplace_back(
+            static_cast<int>(
+                action.m_frame
+            ),
+            button,
+            action.m_player2,
+            action.m_holding
+        );
+    }
+
+    std::stable_sort(
+        newMacro.inputs.begin(),
+        newMacro.inputs.end(),
+        [](input const& a, input const& b) {
+            return a.frame < b.frame;
+        }
+    );
+
+    newMacro.lastRecordedFrame =
+        newMacro.inputs.empty()
+            ? 0
+            : newMacro.inputs.back().frame;
+
+    if (!newMacro.inputs.empty()) {
+        newMacro.duration =
+            static_cast<double>(
+                newMacro.lastRecordedFrame
+            ) /
+            static_cast<double>(
+                newMacro.framerate
+            );
+    }
+    else {
+        newMacro.duration = 0.0;
+    }
+
+    newMacro.xdBotMacro = false;
+
+    Global::get().macro =
+        std::move(newMacro);
+
+    log::info(
+        "SLC2 loaded: {} inputs, {} TPS",
+        Global::get().macro.inputs.size(),
+        Global::get().macro.framerate
+    );
+
+    return true;
+}
+
+// ============================================================
 // SLC3
 // ============================================================
 
