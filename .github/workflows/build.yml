@@ -27,7 +27,7 @@ jobs:
       - name: Build the mod
         uses: geode-sdk/build-geode-mod@main
         with:
-          sdk: 'nightly'
+          sdk: '5.9.0'
           combine: true
           target: ${{ matrix.config.target }}
   package:
