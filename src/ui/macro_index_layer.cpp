@@ -27,9 +27,8 @@ void MacroIndexLayer::open() {
 bool MacroIndexLayer::setup() {
     setTitle("Macro Index");
 
-    // Search
     searchInput = TextInput::create(
-        275.f,
+        260.f,
         "Search level / macro...",
         "chatFont.fnt"
     );
@@ -37,7 +36,6 @@ bool MacroIndexLayer::setup() {
     searchInput->setDelegate(this);
     m_mainLayer->addChild(searchInput);
 
-    // Refresh
     CCSprite* refreshSpr =
         CCSprite::createWithSpriteFrameName("GJ_updateBtn_001.png");
 
@@ -54,7 +52,6 @@ bool MacroIndexLayer::setup() {
     refreshMenu->setPosition({150.f, 130.f});
     m_mainLayer->addChild(refreshMenu);
 
-    // Status
     statusLabel = CCLabelBMFont::create(
         "Loading index...",
         "chatFont.fnt"
@@ -64,7 +61,6 @@ bool MacroIndexLayer::setup() {
     statusLabel->setPosition({0.f, 106.f});
     m_mainLayer->addChild(statusLabel);
 
-    // Results
     resultsLayer = CCLayer::create();
     resultsLayer->setPosition({0.f, 0.f});
     m_mainLayer->addChild(resultsLayer);
@@ -80,7 +76,6 @@ void MacroIndexLayer::onRefresh(CCObject*) {
 
 void MacroIndexLayer::fetchIndex() {
     statusLabel->setString("Loading index...");
-
     clearResults();
     allEntries.clear();
 
@@ -249,26 +244,35 @@ void MacroIndexLayer::populateResults() {
     resultNodes.clear();
 
     constexpr size_t maxShown = 5;
-
-    // Giữ khoảng cách vừa đủ cho popup 380x320.
     float yStart = 78.f;
-    float rowHeight = 45.f;
+    float rowHeight = 42.f;
+    float cardWidth = 340.f;
+    float cardHeight = 38.f;
 
     for (
         size_t i = 0;
         i < filteredEntries.size() && i < maxShown;
         i++
     ) {
-        MacroEntry const& r = filteredEntries[i];
+        MacroEntry const& r =
+            filteredEntries[i];
 
         float y =
             yStart - (i * rowHeight);
 
-        // Macro name
+        CCScale9Sprite* card =
+            CCScale9Sprite::create("square02b_001.png", {0, 0, 80, 80});
+        card->setContentSize({cardWidth, cardHeight});
+        card->setColor(ccc3(20, 25, 60));
+        card->setOpacity(120);
+        card->setPosition({0.f, y});
+        resultsLayer->addChild(card);
+        resultNodes.push_back(card);
+
         CCLabelBMFont* nameLbl =
             CCLabelBMFont::create(
                 r.levelName.c_str(),
-                "bigFont.fnt"
+                "goldFont.fnt"
             );
 
         nameLbl->setAnchorPoint({0.f, 0.5f});
@@ -280,7 +284,6 @@ void MacroIndexLayer::populateResults() {
         resultsLayer->addChild(nameLbl);
         resultNodes.push_back(nameLbl);
 
-        // Author + level
         std::string metaStr =
             fmt::format(
                 "by {} \u2022 Level {}",
@@ -304,7 +307,6 @@ void MacroIndexLayer::populateResults() {
         resultsLayer->addChild(metaLbl);
         resultNodes.push_back(metaLbl);
 
-        // Download button
         ButtonSprite* dlSpr =
             ButtonSprite::create("Download");
 
