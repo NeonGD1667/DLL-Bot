@@ -1,4 +1,3 @@
-
 #include "hacks/layout_mode.hpp"
 #include "hacks/show_trajectory.hpp"
 #include "includes.hpp"
@@ -127,6 +126,16 @@ void handleToggleStepper(Keybind const &, bool down, bool repeat, double) {
   Global::toggleFrameStepper();
 }
 
+// Macro Swapper: mở lại UI Load Macro có sẵn — không tạo hệ thống chọn
+// macro mới. MacroCell::onLoad() đã tự hỏi confirm nếu macro hiện tại
+// không rỗng, nên không cần thêm logic bảo vệ macro ở đây.
+void handleMacroSwapper(Keybind const &, bool down, bool repeat, double) {
+  if (!shouldHandleDllBotKeybind(down, repeat))
+    return;
+
+  LoadMacroLayer::open(nullptr, nullptr, false);
+}
+
 } // namespace
 
 $on_mod(Loaded) {
@@ -152,5 +161,11 @@ $on_mod(Loaded) {
       "keybind_toggle_stepper",
       +[](Keybind const &keybind, bool down, bool repeat, double timestamp) {
         handleToggleStepper(keybind, down, repeat, timestamp);
+      });
+
+  geode::listenForKeybindSettingPresses(
+      "keybind_macro_swapper",
+      +[](Keybind const &keybind, bool down, bool repeat, double timestamp) {
+        handleMacroSwapper(keybind, down, repeat, timestamp);
       });
 }
