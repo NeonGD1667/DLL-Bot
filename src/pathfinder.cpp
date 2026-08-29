@@ -153,7 +153,7 @@ void PathFinder::start() {
   g.stopPlaying = false;
   g.currentAction = 0;
   g.currentFrameFix = 0;
-  g.macro.xdBotMacro = g.macro.botInfo.name == "xdBot";
+  g.macro.DllBotMacro = g.macro.botInfo.name == "Dll Bot";
 
   writeLog("INFO ", "PathFinder started.");
   Notification::create("PathFinder started", NotificationIcon::Info)->show();

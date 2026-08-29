@@ -23,7 +23,7 @@ std::vector<std::string> splitByChar(
     char splitChar
 );
 
-const std::string xdBotVersion = "v2.6-Nako";
+const std::string DllBotVersion = "v3.0.1-Neon";
 
 namespace gdr {
 
@@ -235,14 +235,14 @@ public:
             ver.find("alpha.") == std::string::npos;
 
         if (
-            replay.botInfo.name == "xdBot" &&
-            ver == "v2.0.0"
+            replay.botInfo.name == "Dll Bot" &&
+            ver == "v3.0.1"
         ) {
             rotation = true;
         }
 
         int offset =
-            replay.botInfo.name == "xdBot" ? 1 : 0;
+            replay.botInfo.name == "Dll Bot" ? 1 : 0;
 
         if (offset == 1) {
             if (!ver.empty() && ver.front() == 'v')
@@ -358,7 +358,7 @@ public:
 
             } else if (frameFixJson.contains("p1")) {
 
-                if (replay.botInfo.name != "xdBot")
+                if (replay.botInfo.name != "Dll Bot")
                     rotation = false;
 
                 if (frameFixJson["p1"].contains("x"))

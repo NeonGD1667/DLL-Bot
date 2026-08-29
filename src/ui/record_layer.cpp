@@ -116,7 +116,7 @@ class $modify(PauseLayer) {
   }
 };
 
-class $modify(XdBotEditorPauseLayer, EditorPauseLayer) {
+class $modify(DllBotEditorPauseLayer, EditorPauseLayer) {
   bool init(LevelEditorLayer *lel) {
     if (!EditorPauseLayer::init(lel))
       return false;
@@ -133,7 +133,7 @@ class $modify(XdBotEditorPauseLayer, EditorPauseLayer) {
 
     auto *btn = CCMenuItemSpriteExtra::create(
         sprite, this, menu_selector(RecordLayer::openMenu2));
-    btn->setID("xdbot-editor-button"_spr);
+    btn->setID("DllBot-editor-button"_spr);
     menu->addChild(btn);
     menu->updateLayout();
 
@@ -334,7 +334,7 @@ void RecordLayer::togglePlaying(CCObject *) {
     g.currentAction = 0;
     g.currentFrameFix = 0;
 
-    g.macro.xdBotMacro = g.macro.botInfo.name == "xdBot";
+    g.macro.DllBotMacro = g.macro.botInfo.name == "Dll Bot";
 
     PlayLayer *pl = PlayLayer::get();
 
@@ -640,7 +640,7 @@ void RecordLayer::toggleSetting(CCObject *obj) {
     }
 
     if (!value)
-      Notification::create("xdBot Button is disabled.",
+      Notification::create("DllBot Button is disabled.",
                            NotificationIcon::Warning)
           ->show();
   }
@@ -648,7 +648,7 @@ void RecordLayer::toggleSetting(CCObject *obj) {
 
 void RecordLayer::showKeybindsWarning() {
   if (!mod->setSavedValue("opened_keybinds", true))
-    FLAlertLayer::create("Warning", "Scroll down to find xdBot's keybinds",
+    FLAlertLayer::create("Warning", "Scroll down to find Dll Bot's keybinds",
                          "Ok")
         ->show();
 }
@@ -676,11 +676,11 @@ void RecordLayer::openKeybinds(CCObject *) {
   if (!contentLayer)
     return showKeybindsWarning();
 
-  CCNode *xdBot = contentLayer->getChildByID("xdBot");
-  if (!xdBot)
+  CCNode *DllBot = contentLayer->getChildByID("Dll Bot");
+  if (!DllBot)
     return showKeybindsWarning();
 
-  contentLayer->setPositionY(xdBot->getPositionY() - 118);
+  contentLayer->setPositionY(DllBot->getPositionY() - 118);
 
 #else
 
@@ -790,7 +790,7 @@ bool RecordLayer::setup() {
       CCSprite::createWithSpriteFrameName("GJ_checkOff_001.png");
 
   CCLabelBMFont *versionLabel =
-      CCLabelBMFont::create(("xdBot " + xdBotVersion).c_str(), "chatFont.fnt");
+      CCLabelBMFont::create(("DllBot " + DllBotVersion).c_str(), "chatFont.fnt");
   versionLabel->setOpacity(63);
   versionLabel->setPosition(ccp(-217, -125));
   versionLabel->setAnchorPoint({0, 0.5});

@@ -783,8 +783,8 @@ void Renderer::stop(int frame) {
     if (pl->m_isPaused && audioMode == AudioMode::Record) {
       if (PauseLayer *layer = Global::getPauseLayer()) {
         CCScene *scene = CCDirector::sharedDirector()->getRunningScene();
-        if (RecordLayer *xdbot = scene->getChildByType<RecordLayer>(0))
-          xdbot->onClose(nullptr);
+        if (RecordLayer *DllBot = scene->getChildByType<RecordLayer>(0))
+          DllBot->onClose(nullptr);
 
         layer->onResume(nullptr);
       }

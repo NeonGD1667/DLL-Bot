@@ -6,9 +6,9 @@ A high-performance Geometry Dash DLL bot developed by **Homeless Team**.
 
 This project is developed by **Homeless Team**.
 
-This project includes code derived from **XDBot** by **Zilko**. Full credit goes to the original author for the foundation of this project.
+This project includes code derived from **xdBot** by **Zilko**. Full credit goes to the original author for the foundation of this project.
 
-Special thanks to **Zilko** for creating XDBot and contributing to the Geometry Dash modding community.
+Special thanks to **Zilko** for creating xdBot and contributing to the Geometry Dash modding community.
 
 ## Features
 
@@ -23,7 +23,7 @@ Special thanks to **Zilko** for creating XDBot and contributing to the Geometry 
 
 This project is an unofficial Geometry Dash modification and is not affiliated with RobTop Games.
 
-Please respect the original license of XDBot and any third-party libraries used in this project.
+Please respect the original license of Dll Bot and any third-party libraries used in this project.
 
 ## License
 

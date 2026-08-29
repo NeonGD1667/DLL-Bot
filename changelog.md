@@ -44,9 +44,9 @@ DLL Bot v3.0.0 — Macro formats are getting serious. 🗿
 * Added Telegram channel icon to the bot menu.
 * Added `.gdr2` macro import support.
 * Added built-in custom keybind support for opening the menu and toggling the macro.
-* Added warning toast for legacy `.gdr` macros not recorded with xdBot.
+* Added warning toast for legacy `.gdr` macros not recorded with Dll Bot.
 * Added macro playback support during editor playtest.
-* Added xdBot menu button to the editor pause layer.
+* Added Dll Bot menu button to the editor pause layer.
 * Added option to disable Auto Safe Mode.
 * Added PathFinder (TEST).
 * Added Ghost Playback (TEST).

@@ -81,7 +81,7 @@ class $modify(CCKeyboardDispatcher) {
 
 namespace {
 
-bool shouldHandleXdBotKeybind(bool down, bool repeat) {
+bool shouldHandleDllBotKeybind(bool down, bool repeat) {
   if (!down || repeat)
     return false;
 
@@ -89,7 +89,7 @@ bool shouldHandleXdBotKeybind(bool down, bool repeat) {
 }
 
 void handleOpenMenuKeybind(Keybind const &, bool down, bool repeat, double) {
-  if (!shouldHandleXdBotKeybind(down, repeat))
+  if (!shouldHandleDllBotKeybind(down, repeat))
     return;
 
   auto &g = Global::get();
@@ -102,14 +102,14 @@ void handleOpenMenuKeybind(Keybind const &, bool down, bool repeat, double) {
 }
 
 void handleToggleMacroKeybind(Keybind const &, bool down, bool repeat, double) {
-  if (!shouldHandleXdBotKeybind(down, repeat))
+  if (!shouldHandleDllBotKeybind(down, repeat))
     return;
 
   Macro::togglePlaying();
 }
 
 void handleStepForward(Keybind const &, bool down, bool repeat, double) {
-  if (!shouldHandleXdBotKeybind(down, repeat))
+  if (!shouldHandleDllBotKeybind(down, repeat))
     return;
 
   Global::frameStep(1);
@@ -121,7 +121,7 @@ void handleHoldForward(Keybind const &, bool down, bool repeat, double) {
 }
 
 void handleToggleStepper(Keybind const &, bool down, bool repeat, double) {
-  if (!shouldHandleXdBotKeybind(down, repeat))
+  if (!shouldHandleDllBotKeybind(down, repeat))
     return;
 
   Global::toggleFrameStepper();

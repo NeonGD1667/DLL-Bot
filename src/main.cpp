@@ -248,7 +248,7 @@ class $modify(BGLHook, GJBaseGameLayer) {
       }
 
       int frame = Global::getCurrentFrame();
-      if (frame > 2 && g.firstAttempt && g.macro.xdBotMacro) {
+      if (frame > 2 && g.firstAttempt && g.macro.DllBotMacro) {
         g.firstAttempt = false;
 
         if ((m_levelSettings->m_platformerMode || rendering) &&
@@ -258,7 +258,7 @@ class $modify(BGLHook, GJBaseGameLayer) {
           return pl->resetLevel();
       }
 
-      if (g.previousFrame == frame && frame != 0 && g.macro.xdBotMacro)
+      if (g.previousFrame == frame && frame != 0 && g.macro.DllBotMacro)
         return GJBaseGameLayer::processCommands(dt, isHalfTick, isLastTick);
     }
 
@@ -270,7 +270,7 @@ class $modify(BGLHook, GJBaseGameLayer) {
     int frame = Global::getCurrentFrame();
     g.previousFrame = frame;
 
-    if (g.macro.xdBotMacro && g.restart && !m_levelEndAnimationStarted) {
+    if (g.macro.DllBotMacro && g.restart && !m_levelEndAnimationStarted) {
       if ((m_levelSettings->m_platformerMode && g.state != state::none) ||
           g.renderer.recording || g.renderer.recordingAudio)
         return pl->resetLevelFromStart();
@@ -555,7 +555,7 @@ class $modify(BGLHook, GJBaseGameLayer) {
   }
 };
 
-class $modify(XdBotEditorUI, EditorUI) {
+class $modify(DllBotEditorUI, EditorUI) {
   void onPlaytest(CCObject *sender) {
     auto &g = Global::get();
 
