@@ -81,7 +81,7 @@ bool MacroTimelineLayer::setup() {
   g.state = state::playing;
   g.currentAction = 0;
   g.currentFrameFix = 0;
-  g.macro.Dll BotMacro = g.macro.botInfo.name == "Dll Bot";
+  g.macro.DllBotMacro = g.macro.botInfo.name == "Dll Bot";
   Interface::updateLabels();
   Interface::updateButtons();
 
