@@ -23,6 +23,7 @@ add_library(${PROJECT_NAME} SHARED
     src/utils/utils.cpp
     src/gdr/gdr.cpp
     src/renderer/renderer.cpp
+    src/download/downgrade.cpp
    
 
     src/hacks/other.cpp
