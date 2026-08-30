@@ -18,27 +18,36 @@ void API::getLatestRelease(
     web::WebRequest()
         .userAgent("DLL-Bot")
         .get(url)
-        .map([](web::WebResponse const& response) -> Result<Release> {
-            auto json = response.json();
+        .listen(
+            [callback](web::WebResponse response) {
+                auto json = response.json();
 
-            if (!json) {
-                return Err("Failed to parse GitHub response");
-            }
+                if (!json) {
+                    callback(Err("Failed to parse GitHub response"));
+                    return;
+                }
 
-            auto const& data = json.unwrap();
+                auto data = json.unwrap();
 
-            Release release;
-            release.tagName = data["tag_name"].asString();
-            release.name = data["name"].asString();
-            release.body = data["body"].asString();
-            release.prerelease = data["prerelease"].asBool();
-            release.draft = data["draft"].asBool();
+                auto tagName = data["tag_name"].asString();
+                auto name = data["name"].asString();
+                auto body = data["body"].asString();
+                auto prerelease = data["prerelease"].asBool();
+                auto draft = data["draft"].asBool();
 
-            return Ok(release);
-        })
-        .expect(
-            [callback](Release release) {
-                callback(Ok(release));
+                if (!tagName || !name || !body || !prerelease || !draft) {
+                    callback(Err("Invalid GitHub release JSON"));
+                    return;
+                }
+
+                Release release;
+                release.tagName = tagName.unwrap();
+                release.name = name.unwrap();
+                release.body = body.unwrap();
+                release.prerelease = prerelease.unwrap();
+                release.draft = draft.unwrap();
+
+                callback(Ok(std::move(release)));
             },
             [callback](std::string const& error) {
                 callback(Err(error));
@@ -53,7 +62,7 @@ void API::download(
     web::WebRequest()
         .userAgent("DLL-Bot")
         .get(url)
-        .expect(
+        .listen(
             [callback](web::WebResponse response) {
                 callback(Ok(std::move(response)));
             },
