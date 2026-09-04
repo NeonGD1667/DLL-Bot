@@ -26,6 +26,21 @@ static void downloadRelease(Release const& release);
 class DowngradePopup : public Popup {
 protected:
     bool init() {
+#ifdef GEODE_IS_ANDROID
+        if (!Popup::init(300.f, 220.f))
+            return false;
+
+        auto title = CCLabelBMFont::create(
+            "DLL Bot Downgrade",
+            "bigFont.fnt"
+        );
+
+        title->setPosition({150.f, 190.f});
+        title->setScale(.52f);
+        addChild(title);
+
+        createReleaseUI();
+#else
         if (!Popup::init(360.f, 280.f))
             return false;
 
@@ -39,25 +54,51 @@ protected:
         addChild(title);
 
         createReleaseUI();
+#endif
 
         return true;
     }
 
     void createReleaseUI() {
+
+#ifdef GEODE_IS_ANDROID
+        constexpr float centerX = 150.f;
+        constexpr float stableX = 82.f;
+        constexpr float devX = 218.f;
+        constexpr float headerY = 160.f;
+        constexpr float startY = 135.f;
+        constexpr float spacing = 27.f;
+        constexpr float labelScale = .42f;
+        constexpr float buttonScale = .42f;
+        constexpr int buttonWidth = 58;
+#else
+        constexpr float centerX = 180.f;
+        constexpr float stableX = 100.f;
+        constexpr float devX = 260.f;
+        constexpr float headerY = 215.f;
+        constexpr float startY = 180.f;
+        constexpr float spacing = 32.f;
+        constexpr float labelScale = .5f;
+        constexpr float buttonScale = .5f;
+        constexpr int buttonWidth = 70;
+#endif
+
         auto stable = CCLabelBMFont::create(
             "Stable",
             "goldFont.fnt"
         );
-        stable->setPosition({100.f, 215.f});
-        stable->setScale(.5f);
+
+        stable->setPosition({stableX, headerY});
+        stable->setScale(labelScale);
         addChild(stable);
 
         auto dev = CCLabelBMFont::create(
             "Dev",
             "goldFont.fnt"
         );
-        dev->setPosition({260.f, 215.f});
-        dev->setScale(.5f);
+
+        dev->setPosition({devX, headerY});
+        dev->setScale(labelScale);
         addChild(dev);
 
         auto stableMenu = CCMenu::create();
@@ -68,8 +109,8 @@ protected:
         devMenu->setPosition({0.f, 0.f});
         addChild(devMenu);
 
-        float stableY = 180.f;
-        float devY = 180.f;
+        float stableY = startY;
+        float devY = startY;
 
         for (int i = 0; i < static_cast<int>(s_releases.size()); ++i) {
             auto const& release = s_releases[i];
@@ -77,12 +118,12 @@ protected:
             auto button = CCMenuItemSpriteExtra::create(
                 ButtonSprite::create(
                     release.tag.c_str(),
-                    70,
+                    buttonWidth,
                     true,
                     "bigFont.fnt",
                     "GJ_button_01.png",
                     25.f,
-                    .5f
+                    buttonScale
                 ),
                 this,
                 menu_selector(DowngradePopup::onRelease)
@@ -91,14 +132,14 @@ protected:
             button->setTag(i);
 
             if (release.dev) {
-                button->setPosition({260.f, devY});
+                button->setPosition({devX, devY});
                 devMenu->addChild(button);
-                devY -= 32.f;
+                devY -= spacing;
             }
             else {
-                button->setPosition({100.f, stableY});
+                button->setPosition({stableX, stableY});
                 stableMenu->addChild(button);
-                stableY -= 32.f;
+                stableY -= spacing;
             }
         }
 
@@ -108,8 +149,8 @@ protected:
                 "bigFont.fnt"
             );
 
-            label->setPosition({180.f, 135.f});
-            label->setScale(.5f);
+            label->setPosition({centerX, 100.f});
+            label->setScale(labelScale);
             addChild(label);
         }
     }
@@ -118,8 +159,10 @@ protected:
         auto button = static_cast<CCNode*>(sender);
         auto index = button->getTag();
 
-        if (index < 0 ||
-            index >= static_cast<int>(s_releases.size()))
+        if (
+            index < 0 ||
+            index >= static_cast<int>(s_releases.size())
+        )
             return;
 
         downloadRelease(s_releases[index]);
@@ -146,6 +189,7 @@ static void downloadRelease(Release const& release) {
             "This release has no <cj>.geode</c> asset.",
             "OK"
         )->show();
+
         return;
     }
 
@@ -158,6 +202,7 @@ static void downloadRelease(Release const& release) {
                     result.unwrapErr().c_str(),
                     "OK"
                 )->show();
+
                 return;
             }
 
@@ -178,6 +223,7 @@ static void downloadRelease(Release const& release) {
                     written.unwrapErr().c_str(),
                     "OK"
                 )->show();
+
                 return;
             }
 
@@ -210,6 +256,7 @@ static void fetchReleases() {
                     result.unwrapErr().c_str(),
                     "OK"
                 )->show();
+
                 return;
             }
 
@@ -221,6 +268,7 @@ static void fetchReleases() {
                     "Failed to parse GitHub response.",
                     "OK"
                 )->show();
+
                 return;
             }
 
@@ -232,6 +280,7 @@ static void fetchReleases() {
                     "Invalid GitHub releases response.",
                     "OK"
                 )->show();
+
                 return;
             }
 
