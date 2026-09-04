@@ -21,6 +21,8 @@ struct Release {
 static std::vector<Release> s_releases;
 static bool s_loading = false;
 
+static void downloadRelease(Release const& release);
+
 class DowngradePopup : public Popup {
 protected:
     bool init() {
@@ -31,16 +33,17 @@ protected:
             "DLL Bot Downgrade",
             "bigFont.fnt"
         );
+
         title->setPosition({180.f, 245.f});
         title->setScale(.65f);
         addChild(title);
 
-        refresh();
+        createReleaseUI();
 
         return true;
     }
 
-    void refresh() {
+    void createReleaseUI() {
         auto stable = CCLabelBMFont::create(
             "Stable",
             "goldFont.fnt"
@@ -57,27 +60,69 @@ protected:
         dev->setScale(.5f);
         addChild(dev);
 
+        auto stableMenu = CCMenu::create();
+        stableMenu->setPosition({0.f, 0.f});
+        addChild(stableMenu);
+
+        auto devMenu = CCMenu::create();
+        devMenu->setPosition({0.f, 0.f});
+        addChild(devMenu);
+
         float stableY = 180.f;
         float devY = 180.f;
 
-        for (auto const& release : s_releases) {
-            float& y = release.dev ? devY : stableY;
+        for (int i = 0; i < static_cast<int>(s_releases.size()); ++i) {
+            auto const& release = s_releases[i];
 
+            auto button = CCMenuItemSpriteExtra::create(
+                ButtonSprite::create(
+                    release.tag.c_str(),
+                    70,
+                    true,
+                    "bigFont.fnt",
+                    "GJ_button_01.png",
+                    25.f,
+                    .5f
+                ),
+                this,
+                menu_selector(DowngradePopup::onRelease)
+            );
+
+            button->setTag(i);
+
+            if (release.dev) {
+                button->setPosition({260.f, devY});
+                devMenu->addChild(button);
+                devY -= 32.f;
+            }
+            else {
+                button->setPosition({100.f, stableY});
+                stableMenu->addChild(button);
+                stableY -= 32.f;
+            }
+        }
+
+        if (s_releases.empty()) {
             auto label = CCLabelBMFont::create(
-                release.tag.c_str(),
+                "No releases found.",
                 "bigFont.fnt"
             );
 
-            label->setScale(.42f);
-            label->setPosition({
-                release.dev ? 260.f : 100.f,
-                y
-            });
-
+            label->setPosition({180.f, 135.f});
+            label->setScale(.5f);
             addChild(label);
-
-            y -= 30.f;
         }
+    }
+
+    void onRelease(CCObject* sender) {
+        auto button = static_cast<CCNode*>(sender);
+        auto index = button->getTag();
+
+        if (index < 0 ||
+            index >= static_cast<int>(s_releases.size()))
+            return;
+
+        downloadRelease(s_releases[index]);
     }
 
 public:
@@ -120,13 +165,16 @@ static void downloadRelease(Release const& release) {
 
             auto path =
                 Mod::get()->getSaveDir() /
-                fmt::format("DLL-Bot-{}.geode", release.tag);
+                fmt::format(
+                    "DLL-Bot-{}.geode",
+                    release.tag
+                );
 
             auto written = file::writeBinarySafe(path, data);
 
             if (!written) {
                 FLAlertLayer::create(
-                    "Install Failed",
+                    "Download Failed",
                     written.unwrapErr().c_str(),
                     "OK"
                 )->show();
@@ -136,9 +184,8 @@ static void downloadRelease(Release const& release) {
             FLAlertLayer::create(
                 "Download Complete",
                 fmt::format(
-                    "Downloaded {} successfully.\n\n{}",
-                    release.tag,
-                    path.string()
+                    "Downloaded {} successfully.",
+                    release.tag
                 ).c_str(),
                 "OK"
             )->show();
@@ -207,7 +254,9 @@ static void fetchReleases() {
 
                 if (assets.isArray()) {
                     for (auto const& asset : assets) {
-                        auto assetName = asset["name"].asString();
+                        auto assetName =
+                            asset["name"].asString();
+
                         auto browserURL =
                             asset["browser_download_url"].asString();
 
@@ -244,4 +293,4 @@ void open() {
     fetchReleases();
 }
 
-} 
+}
