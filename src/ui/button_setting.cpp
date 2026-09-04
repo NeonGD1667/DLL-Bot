@@ -1,6 +1,6 @@
 #include "../includes.hpp"
 #include "record_layer.hpp"
-#include "../downgrade.hpp"
+#include "../download/downgrade.hpp"
 
 #include <Geode/loader/SettingV3.hpp>
 #include <Geode/loader/Mod.hpp>
