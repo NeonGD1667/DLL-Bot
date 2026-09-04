@@ -21,6 +21,11 @@
             "version": ">=v2.1.0",
             "required": true,
             "platforms": ["win", "android", "mac", "ios"]
+        },
+        "thesillydoggo.blur-api":{
+            "version": ">=1.0.0",
+            "required": true,
+            "platforms": ["win","android","mac","ios"]
         }
     },
     "settings": {
@@ -283,8 +288,8 @@
         ]
     },
     "links": {
-        "source": "https://codeberg.org/Homeless-Team/Dll-Bot",
-        "community": "https://discord.gg/dmGtYSZYVp"
+        "source": "https://github.com/NeonGD1667/DLL-Bot",
+        "community": "https://discord.gg/Wk6QcKdXck"
     },
     "tags": [
         "cheat",
