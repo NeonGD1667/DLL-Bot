@@ -1,17 +1,19 @@
 #pragma once
 
-#include <Geode/utils/web.hpp>
 #include <Geode/utils/async.hpp>
+#include <Geode/utils/web.hpp>
 
 namespace github {
 
 using WebResponse = geode::utils::web::WebResponse;
 
+inline async::TaskHolder<WebResponse> s_requestHolder;
+
 inline void get(
     std::string const& url,
     geode::Function<void(geode::Result<WebResponse>)> callback
 ) {
-    geode::async::spawn(
+    s_requestHolder.spawn(
         geode::utils::web::WebRequest()
             .userAgent("DLL-Bot")
             .get(url),
@@ -32,7 +34,7 @@ inline void download(
     std::string const& url,
     geode::Function<void(geode::Result<geode::ByteVector>)> callback
 ) {
-    geode::async::spawn(
+    s_requestHolder.spawn(
         geode::utils::web::WebRequest()
             .userAgent("DLL-Bot")
             .get(url),
