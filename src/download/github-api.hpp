@@ -7,7 +7,7 @@ namespace github {
 
 using WebResponse = geode::utils::web::WebResponse;
 
-inline async::TaskHolder<WebResponse> s_requestHolder;
+inline geode::async::TaskHolder<WebResponse> s_requestHolder;
 
 inline void get(
     std::string const& url,
