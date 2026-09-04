@@ -23,8 +23,6 @@ static constexpr char const* MOD_FILE =
 static constexpr char const* TEMP_FILE =
     "DLL-Bot-downgrade.tmp.geode";
 
-// Locked after Accept is pressed.
-// This prevents multiple downloads / multiple .tmp files.
 static bool s_downloading = false;
 
 struct ReleaseInfo {
@@ -40,8 +38,6 @@ static std::array<int, 3> parseVersion(std::string version) {
         version.erase(0, 1);
     }
 
-    // 3.0.0-beta -> 3.0.0
-    // 2.7.0-rc1 -> 2.7.0
     auto dash = version.find('-');
     if (dash != std::string::npos) {
         version.erase(dash);
@@ -75,11 +71,14 @@ static bool isOlderVersion(
 }
 
 static void showError(std::string const& message) {
-    FLAlertLayer::create(
+    auto alert = FLAlertLayer::create(
         "DLL Bot",
         message.c_str(),
         "OK"
-    )->show();
+    );
+
+    if (alert)
+        alert->show();
 }
 
 static void resetDownloadLock() {
@@ -92,10 +91,7 @@ static void removeTempFile() {
         TEMP_FILE;
 
     std::error_code ec;
-
-    if (std::filesystem::exists(tempPath, ec)) {
-        std::filesystem::remove(tempPath, ec);
-    }
+    std::filesystem::remove(tempPath, ec);
 }
 
 static void installRelease(ReleaseInfo const& release) {
@@ -137,7 +133,6 @@ static void installRelease(ReleaseInfo const& release) {
                 return;
             }
 
-            // Write the new package to a temporary file first.
             if (!file::writeBinarySafe(tempPath, data)) {
                 removeTempFile();
                 resetDownloadLock();
@@ -151,7 +146,12 @@ static void installRelease(ReleaseInfo const& release) {
 
             std::error_code existsError;
 
-            if (!std::filesystem::exists(tempPath, existsError)) {
+            if (!std::filesystem::exists(
+                    tempPath,
+                    existsError
+                )) {
+
+                removeTempFile();
                 resetDownloadLock();
 
                 showError(
@@ -169,14 +169,14 @@ static void installRelease(ReleaseInfo const& release) {
                 Mod::get()->getPackagePath();
 
             /*
-             * Important:
-             *
-             * The download has already completed successfully.
-             * Only now do we touch the currently installed DLL Bot.
+             * Remove currently installed DLL Bot.
              */
 
-            // Remove the currently installed package.
-            if (std::filesystem::exists(installedPath, existsError)) {
+            if (std::filesystem::exists(
+                    installedPath,
+                    existsError
+                )) {
+
                 std::error_code removeError;
 
                 std::filesystem::remove(
@@ -199,9 +199,12 @@ static void installRelease(ReleaseInfo const& release) {
                 }
             }
 
-            // Remove an existing target package if it is different
-            // from the currently installed package.
+            /*
+             * Remove existing target package if necessary.
+             */
+
             std::error_code sameError;
+
             bool samePath =
                 std::filesystem::equivalent(
                     installedPath,
@@ -210,7 +213,10 @@ static void installRelease(ReleaseInfo const& release) {
                 );
 
             if (!samePath &&
-                std::filesystem::exists(targetPath, existsError)) {
+                std::filesystem::exists(
+                    targetPath,
+                    existsError
+                )) {
 
                 std::error_code removeError;
 
@@ -234,7 +240,10 @@ static void installRelease(ReleaseInfo const& release) {
                 }
             }
 
-            // Move the downloaded package into the mods directory.
+            /*
+             * Move temporary package into mods directory.
+             */
+
             std::error_code renameError;
 
             std::filesystem::rename(
@@ -244,8 +253,6 @@ static void installRelease(ReleaseInfo const& release) {
             );
 
             if (renameError) {
-                // Some filesystems may not support rename across
-                // different filesystem boundaries, so try copy.
                 std::error_code copyError;
 
                 std::filesystem::copy_file(
@@ -281,12 +288,10 @@ static void installRelease(ReleaseInfo const& release) {
             /*
              * Installation succeeded.
              *
-             * Keep s_downloading locked until Geometry Dash restarts.
-             * This prevents the user from installing another version
-             * into the same running game instance.
+             * Keep the lock until Geometry Dash restarts.
              */
 
-            FLAlertLayer::create(
+            auto alert = FLAlertLayer::create(
                 "DLL Bot",
                 fmt::format(
                     "Successfully downgraded to {}.\n\n"
@@ -294,13 +299,16 @@ static void installRelease(ReleaseInfo const& release) {
                     release.tag
                 ).c_str(),
                 "OK"
-            )->show();
+            );
+
+            if (alert)
+                alert->show();
         }
     );
 }
 
 /*
- * Confirmation popup
+ * Confirmation popup delegate.
  */
 
 class ConfirmDelegate : public FLAlertLayerProtocol {
@@ -318,17 +326,12 @@ public:
         ret->m_release = release;
         ret->m_button = button;
 
-        if (ret) {
-            ret->autorelease();
-            return ret;
-        }
-
-        delete ret;
-        return nullptr;
+        ret->autorelease();
+        return ret;
     }
 
     void FLAlert_Clicked(
-        FLAlertLayer* layer,
+        FLAlertLayer*,
         bool btn2
     ) override {
         if (!btn2)
@@ -338,9 +341,9 @@ public:
             return;
 
         /*
-         * Lock immediately when Accept is pressed.
-         * The release button is also disabled immediately.
+         * Lock immediately.
          */
+
         s_downloading = true;
 
         if (m_button) {
@@ -375,20 +378,20 @@ static void confirmInstall(
     if (!delegate)
         return;
 
-    FLAlertLayer::create(
+    auto alert = FLAlertLayer::create(
         delegate,
         "Confirm Downgrade",
         message.c_str(),
         "Cancel",
         "Accept"
-    )->show();
+    );
+
+    if (alert)
+        alert->show();
 }
 
 /*
- * Release button callback target.
- *
- * CCMenuItemSpriteExtra requires a SEL_MenuHandler,
- * so we cannot pass a lambda directly.
+ * Button callback target.
  */
 
 class ReleaseButtonDelegate : public CCObject {
@@ -403,13 +406,8 @@ public:
 
         ret->m_release = release;
 
-        if (ret) {
-            ret->autorelease();
-            return ret;
-        }
-
-        delete ret;
-        return nullptr;
+        ret->autorelease();
+        return ret;
     }
 
     void onInstall(CCObject* sender) {
@@ -442,17 +440,21 @@ static void createReleaseButton(
         "goldFont.fnt"
     );
 
-    label->setScale(labelScale);
-    label->setPosition({
-        x,
-        y
-    });
-    label->setAnchorPoint({
-        0.5f,
-        0.5f
-    });
+    if (label) {
+        label->setScale(labelScale);
 
-    parent->addChild(label);
+        label->setPosition({
+            x,
+            y
+        });
+
+        label->setAnchorPoint({
+            0.5f,
+            0.5f
+        });
+
+        parent->addChild(label);
+    }
 
     auto delegate =
         ReleaseButtonDelegate::create(release);
@@ -460,21 +462,30 @@ static void createReleaseButton(
     if (!delegate)
         return;
 
-    auto button = CCMenuItemSpriteExtra::create(
-        ButtonSprite::create(
-            "Install",
-            buttonWidth,
-            true,
-            "bigFont.fnt",
-            "GJ_button_01.png",
-            30.0f,
-            buttonScale
-        ),
-        delegate,
-        menu_selector(
-            ReleaseButtonDelegate::onInstall
-        )
+    auto sprite = ButtonSprite::create(
+        "Install",
+        buttonWidth,
+        true,
+        "bigFont.fnt",
+        "GJ_button_01.png",
+        30.0f,
+        buttonScale
     );
+
+    if (!sprite)
+        return;
+
+    auto button =
+        CCMenuItemSpriteExtra::create(
+            sprite,
+            delegate,
+            menu_selector(
+                ReleaseButtonDelegate::onInstall
+            )
+        );
+
+    if (!button)
+        return;
 
     button->setPosition({
         x,
@@ -542,16 +553,6 @@ void open() {
                 auto draft =
                     release["draft"].asBool();
 
-                /*
-                 * Result<T> is checked for errors here.
-                 *
-                 * Do NOT use:
-                 *
-                 * !prerelease
-                 *
-                 * because prerelease=false is a valid result.
-                 */
-
                 if (!tag ||
                     !name ||
                     !prerelease ||
@@ -566,9 +567,9 @@ void open() {
                     tag.unwrap();
 
                 if (!isOlderVersion(
-                    tagValue,
-                    currentVersion
-                )) {
+                        tagValue,
+                        currentVersion
+                    )) {
                     continue;
                 }
 
@@ -632,11 +633,14 @@ void open() {
             if (stable.empty() &&
                 dev.empty()) {
 
-                FLAlertLayer::create(
+                auto alert = FLAlertLayer::create(
                     "DLL Bot",
                     "No older releases found.",
                     "OK"
-                )->show();
+                );
+
+                if (alert)
+                    alert->show();
 
                 return;
             }
@@ -650,6 +654,9 @@ void open() {
             auto popup = CCScale9Sprite::create(
                 "GJ_square01.png"
             );
+
+            if (!popup)
+                return;
 
             popup->setContentSize({
                 300.f,
@@ -666,18 +673,21 @@ void open() {
                 "goldFont.fnt"
             );
 
-            title->setPosition({
-                150.f,
-                190.f
-            });
+            if (title) {
+                title->setPosition({
+                    150.f,
+                    190.f
+                });
 
-            title->setScale(.52f);
-            title->setAnchorPoint({
-                .5f,
-                .5f
-            });
+                title->setScale(.52f);
 
-            popup->addChild(title);
+                title->setAnchorPoint({
+                    .5f,
+                    .5f
+                });
+
+                popup->addChild(title);
+            }
 
             float stableX = 82.f;
             float devX = 218.f;
@@ -690,38 +700,47 @@ void open() {
                 "goldFont.fnt"
             );
 
-            stableHeader->setPosition({
-                stableX,
-                headerY
-            });
+            if (stableHeader) {
+                stableHeader->setPosition({
+                    stableX,
+                    headerY
+                });
 
-            stableHeader->setScale(.42f);
-            stableHeader->setAnchorPoint({
-                .5f,
-                .5f
-            });
+                stableHeader->setScale(.42f);
 
-            popup->addChild(stableHeader);
+                stableHeader->setAnchorPoint({
+                    .5f,
+                    .5f
+                });
+
+                popup->addChild(stableHeader);
+            }
 
             auto devHeader = CCLabelBMFont::create(
                 "Dev",
                 "goldFont.fnt"
             );
 
-            devHeader->setPosition({
-                devX,
-                headerY
-            });
+            if (devHeader) {
+                devHeader->setPosition({
+                    devX,
+                    headerY
+                });
 
-            devHeader->setScale(.42f);
-            devHeader->setAnchorPoint({
-                .5f,
-                .5f
-            });
+                devHeader->setScale(.42f);
 
-            popup->addChild(devHeader);
+                devHeader->setAnchorPoint({
+                    .5f,
+                    .5f
+                });
+
+                popup->addChild(devHeader);
+            }
 
             auto menu = CCMenu::create();
+
+            if (!menu)
+                return;
 
             menu->setPosition({
                 0.f,
@@ -766,6 +785,9 @@ void open() {
                 "GJ_square01.png"
             );
 
+            if (!popup)
+                return;
+
             popup->setContentSize({
                 360.f,
                 280.f
@@ -781,18 +803,21 @@ void open() {
                 "goldFont.fnt"
             );
 
-            title->setPosition({
-                180.f,
-                245.f
-            });
+            if (title) {
+                title->setPosition({
+                    180.f,
+                    245.f
+                });
 
-            title->setScale(.65f);
-            title->setAnchorPoint({
-                .5f,
-                .5f
-            });
+                title->setScale(.65f);
 
-            popup->addChild(title);
+                title->setAnchorPoint({
+                    .5f,
+                    .5f
+                });
+
+                popup->addChild(title);
+            }
 
             float stableX = 100.f;
             float devX = 260.f;
@@ -805,38 +830,47 @@ void open() {
                 "goldFont.fnt"
             );
 
-            stableHeader->setPosition({
-                stableX,
-                headerY
-            });
+            if (stableHeader) {
+                stableHeader->setPosition({
+                    stableX,
+                    headerY
+                });
 
-            stableHeader->setScale(.5f);
-            stableHeader->setAnchorPoint({
-                .5f,
-                .5f
-            });
+                stableHeader->setScale(.5f);
 
-            popup->addChild(stableHeader);
+                stableHeader->setAnchorPoint({
+                    .5f,
+                    .5f
+                });
+
+                popup->addChild(stableHeader);
+            }
 
             auto devHeader = CCLabelBMFont::create(
                 "Dev",
                 "goldFont.fnt"
             );
 
-            devHeader->setPosition({
-                devX,
-                headerY
-            });
+            if (devHeader) {
+                devHeader->setPosition({
+                    devX,
+                    headerY
+                });
 
-            devHeader->setScale(.5f);
-            devHeader->setAnchorPoint({
-                .5f,
-                .5f
-            });
+                devHeader->setScale(.5f);
 
-            popup->addChild(devHeader);
+                devHeader->setAnchorPoint({
+                    .5f,
+                    .5f
+                });
+
+                popup->addChild(devHeader);
+            }
 
             auto menu = CCMenu::create();
+
+            if (!menu)
+                return;
 
             menu->setPosition({
                 0.f,
@@ -887,4 +921,4 @@ void open() {
     );
 }
 
-}
+} // namespace downgrade
