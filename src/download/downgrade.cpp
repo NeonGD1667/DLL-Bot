@@ -19,6 +19,10 @@ static constexpr char const* RELEASES_URL =
 static constexpr char const* MOD_FILE =
     "homeless.dll-bot.geode";
 
+// Global lock for the whole downgrade operation.
+// This prevents multiple .tmp downloads from being created.
+static bool s_downloading = false;
+
 struct ReleaseInfo {
     std::string tag;
     std::string name;
@@ -27,13 +31,11 @@ struct ReleaseInfo {
 };
 
 static std::array<int, 3> parseVersion(std::string version) {
-    // Remove leading v/V
     if (!version.empty() &&
         (version[0] == 'v' || version[0] == 'V')) {
         version.erase(0, 1);
     }
 
-    // Remove prerelease suffix:
     // 3.0.0-beta -> 3.0.0
     // 2.7.0-rc1 -> 2.7.0
     auto dash = version.find('-');
@@ -76,11 +78,33 @@ static void showError(std::string const& message) {
     )->show();
 }
 
+static void resetDownloadLock() {
+    s_downloading = false;
+}
+
 static void installRelease(ReleaseInfo const& release) {
+    // Extra protection in case this function is called directly.
+    if (s_downloading)
+        return;
+
+    // Lock BEFORE starting the HTTP request.
+    s_downloading = true;
+
     github::download(
         release.downloadURL,
         [release](geode::Result<geode::ByteVector> result) {
+            auto tempPath =
+                Mod::get()->getSaveDir() /
+                "DLL-Bot-downgrade.tmp.geode";
+
             if (!result) {
+                if (ghc::filesystem::exists(tempPath)) {
+                    std::error_code ec;
+                    ghc::filesystem::remove(tempPath, ec);
+                }
+
+                resetDownloadLock();
+
                 showError(
                     fmt::format(
                         "Failed to download {}.\n\n{}",
@@ -94,13 +118,37 @@ static void installRelease(ReleaseInfo const& release) {
             auto const& data = result.unwrap();
 
             if (data.empty()) {
-                showError("Downloaded file is empty.");
+                if (ghc::filesystem::exists(tempPath)) {
+                    std::error_code ec;
+                    ghc::filesystem::remove(tempPath, ec);
+                }
+
+                resetDownloadLock();
+
+                showError(
+                    "Downloaded package is empty."
+                );
                 return;
             }
 
-            auto tempPath =
-                Mod::get()->getSaveDir() /
-                "DLL-Bot-downgrade.tmp.geode";
+            // Write to a temporary file first.
+            if (!file::writeBinarySafe(tempPath, data)) {
+                resetDownloadLock();
+
+                showError(
+                    "Failed to write the downloaded package."
+                );
+                return;
+            }
+
+            if (!ghc::filesystem::exists(tempPath)) {
+                resetDownloadLock();
+
+                showError(
+                    "Downloaded package could not be created."
+                );
+                return;
+            }
 
             auto targetPath =
                 dirs::getModsDir() /
@@ -109,30 +157,22 @@ static void installRelease(ReleaseInfo const& release) {
             auto installedPath =
                 Mod::get()->getPackagePath();
 
-            // Never touch the current installation until
-            // the new package has been downloaded successfully.
-            if (!file::writeBinarySafe(tempPath, data)) {
-                showError(
-                    "Failed to write the downloaded package."
-                );
-                return;
-            }
-
-            // Make sure the temporary package actually exists.
-            if (!ghc::filesystem::exists(tempPath)) {
-                showError(
-                    "Downloaded package could not be created."
-                );
-                return;
-            }
-
-            // Remove the currently installed DLL Bot package.
+            // Remove the currently installed package.
             if (ghc::filesystem::exists(installedPath)) {
                 std::error_code ec;
-                ghc::filesystem::remove(installedPath, ec);
+
+                ghc::filesystem::remove(
+                    installedPath,
+                    ec
+                );
 
                 if (ec) {
-                    ghc::filesystem::remove(tempPath);
+                    ghc::filesystem::remove(
+                        tempPath,
+                        ec
+                    );
+
+                    resetDownloadLock();
 
                     showError(
                         fmt::format(
@@ -144,13 +184,22 @@ static void installRelease(ReleaseInfo const& release) {
                 }
             }
 
-            // Remove the target package if it is still present.
+            // Remove an existing target package.
             if (ghc::filesystem::exists(targetPath)) {
                 std::error_code ec;
-                ghc::filesystem::remove(targetPath, ec);
+
+                ghc::filesystem::remove(
+                    targetPath,
+                    ec
+                );
 
                 if (ec) {
-                    ghc::filesystem::remove(tempPath);
+                    ghc::filesystem::remove(
+                        tempPath,
+                        ec
+                    );
+
+                    resetDownloadLock();
 
                     showError(
                         fmt::format(
@@ -164,6 +213,7 @@ static void installRelease(ReleaseInfo const& release) {
 
             // Move the downloaded package into the mods directory.
             std::error_code renameError;
+
             ghc::filesystem::rename(
                 tempPath,
                 targetPath,
@@ -171,8 +221,7 @@ static void installRelease(ReleaseInfo const& release) {
             );
 
             if (renameError) {
-                // Fallback: copy + remove temp if rename fails
-                // because of filesystem restrictions.
+                // Fallback for filesystems where rename() fails.
                 std::error_code copyError;
 
                 ghc::filesystem::copy_file(
@@ -183,7 +232,14 @@ static void installRelease(ReleaseInfo const& release) {
                 );
 
                 if (copyError) {
-                    ghc::filesystem::remove(tempPath);
+                    std::error_code removeError;
+
+                    ghc::filesystem::remove(
+                        tempPath,
+                        removeError
+                    );
+
+                    resetDownloadLock();
 
                     showError(
                         fmt::format(
@@ -195,9 +251,17 @@ static void installRelease(ReleaseInfo const& release) {
                     return;
                 }
 
-                ghc::filesystem::remove(tempPath);
+                std::error_code removeError;
+
+                ghc::filesystem::remove(
+                    tempPath,
+                    removeError
+                );
             }
 
+            // Do NOT unlock here.
+            // The installation succeeded, so prevent another
+            // downgrade operation until Geometry Dash restarts.
             FLAlertLayer::create(
                 "DLL Bot",
                 fmt::format(
@@ -209,6 +273,52 @@ static void installRelease(ReleaseInfo const& release) {
             )->show();
         }
     );
+}
+
+static void confirmInstall(
+    ReleaseInfo const& release,
+    CCMenuItemSpriteExtra* button
+) {
+    if (s_downloading)
+        return;
+
+    auto message = fmt::format(
+        "Are you sure you want to downgrade DLL Bot to {}?\n\n"
+        "Geometry Dash will need to be restarted after installation.",
+        release.tag
+    );
+
+    auto alert = FLAlertLayer::create(
+        "Confirm Downgrade",
+        message.c_str(),
+        "Cancel",
+        "Accept"
+    );
+
+    // Accept callback.
+    //
+    // The button is disabled BEFORE starting the download.
+    // This makes it impossible to queue multiple downloads
+    // by repeatedly pressing Accept.
+    alert->m_button2->m_pfnSelector = [release, button](CCObject*) {
+        if (s_downloading)
+            return;
+
+        s_downloading = true;
+
+        if (button) {
+            button->setEnabled(false);
+            button->setOpacity(100);
+        }
+
+        // installRelease normally performs the lock itself,
+        // so reset it here temporarily before handing control over.
+        s_downloading = false;
+
+        installRelease(release);
+    };
+
+    alert->show();
 }
 
 static void createReleaseButton(
@@ -244,8 +354,17 @@ static void createReleaseButton(
             buttonScale
         ),
         parent,
-        [release](CCObject*) {
-            installRelease(release);
+        [release](CCObject* sender) {
+            if (s_downloading)
+                return;
+
+            auto button =
+                static_cast<CCMenuItemSpriteExtra*>(sender);
+
+            confirmInstall(
+                release,
+                button
+            );
         }
     );
 
@@ -278,14 +397,18 @@ void open() {
                 result.unwrap().json();
 
             if (!jsonResult) {
-                showError("Failed to parse GitHub response.");
+                showError(
+                    "Failed to parse GitHub response."
+                );
                 return;
             }
 
             auto json = jsonResult.unwrap();
 
             if (!json.isArray()) {
-                showError("Invalid GitHub releases response.");
+                showError(
+                    "Invalid GitHub releases response."
+                );
                 return;
             }
 
@@ -293,20 +416,28 @@ void open() {
             std::vector<ReleaseInfo> dev;
 
             for (auto const& release : json) {
-                auto tag = release["tag_name"].asString();
-                auto name = release["name"].asString();
-                auto prerelease = release["prerelease"].asBool();
-                auto draft = release["draft"].asBool();
+                auto tag =
+                    release["tag_name"].asString();
 
-                if (!tag || !name || !prerelease || !draft)
+                auto name =
+                    release["name"].asString();
+
+                auto prerelease =
+                    release["prerelease"].asBool();
+
+                auto draft =
+                    release["draft"].asBool();
+
+                if (!tag ||
+                    !name ||
+                    !prerelease ||
+                    !draft) {
                     continue;
+                }
 
-                // Never show GitHub drafts.
                 if (draft.unwrap())
                     continue;
 
-                // Only show versions older than the currently
-                // installed version.
                 if (!isOlderVersion(
                     tag.unwrap(),
                     currentVersion
@@ -314,7 +445,8 @@ void open() {
                     continue;
                 }
 
-                auto assets = release["assets"];
+                auto assets =
+                    release["assets"];
 
                 if (!assets || !assets.isArray())
                     continue;
@@ -332,7 +464,8 @@ void open() {
                         continue;
 
                     if (assetName.unwrap() == MOD_FILE) {
-                        downloadURL = assetURL.unwrap();
+                        downloadURL =
+                            assetURL.unwrap();
                         break;
                     }
                 }
@@ -347,9 +480,13 @@ void open() {
                 info.prerelease = prerelease.unwrap();
 
                 if (info.prerelease)
-                    dev.push_back(std::move(info));
+                    dev.push_back(
+                        std::move(info)
+                    );
                 else
-                    stable.push_back(std::move(info));
+                    stable.push_back(
+                        std::move(info)
+                    );
             }
 
             if (stable.empty() && dev.empty()) {
@@ -362,31 +499,37 @@ void open() {
                 return;
             }
 
-            // -------------------------------------------------
-            // UI
-            // -------------------------------------------------
-
-            auto layer = CCLayerColor::create(
-                {0, 0, 0, 0}
-            );
+#if defined(GEODE_IS_ANDROID) || defined(GEODE_IS_IOS)
 
             auto popup = CCScale9Sprite::create(
                 "GJ_square01.png"
             );
 
-#if defined(GEODE_IS_ANDROID) || defined(GEODE_IS_IOS)
+            popup->setContentSize({
+                300.f,
+                220.f
+            });
 
-            popup->setContentSize({300.f, 220.f});
-            popup->setPosition({150.f, 110.f});
+            popup->setPosition({
+                150.f,
+                110.f
+            });
 
             auto title = CCLabelBMFont::create(
                 "DLL Bot Downgrade",
                 "goldFont.fnt"
             );
 
-            title->setPosition({150.f, 190.f});
+            title->setPosition({
+                150.f,
+                190.f
+            });
+
             title->setScale(.52f);
-            title->setAnchorPoint({0.5f, 0.5f});
+            title->setAnchorPoint({
+                .5f,
+                .5f
+            });
 
             popup->addChild(title);
 
@@ -405,8 +548,12 @@ void open() {
                 stableX,
                 headerY
             });
+
             stableHeader->setScale(.42f);
-            stableHeader->setAnchorPoint({0.5f, 0.5f});
+            stableHeader->setAnchorPoint({
+                .5f,
+                .5f
+            });
 
             popup->addChild(stableHeader);
 
@@ -419,13 +566,21 @@ void open() {
                 devX,
                 headerY
             });
+
             devHeader->setScale(.42f);
-            devHeader->setAnchorPoint({0.5f, 0.5f});
+            devHeader->setAnchorPoint({
+                .5f,
+                .5f
+            });
 
             popup->addChild(devHeader);
 
             auto menu = CCMenu::create();
-            menu->setPosition({0, 0});
+            menu->setPosition({
+                0.f,
+                0.f
+            });
+
             popup->addChild(menu);
 
             for (size_t i = 0; i < stable.size(); ++i) {
@@ -433,7 +588,8 @@ void open() {
                     menu,
                     stable[i],
                     stableX,
-                    startY - static_cast<float>(i) * spacing,
+                    startY -
+                        static_cast<float>(i) * spacing,
                     58.f,
                     .42f,
                     .42f
@@ -445,7 +601,8 @@ void open() {
                     menu,
                     dev[i],
                     devX,
-                    startY - static_cast<float>(i) * spacing,
+                    startY -
+                        static_cast<float>(i) * spacing,
                     58.f,
                     .42f,
                     .42f
@@ -454,17 +611,35 @@ void open() {
 
 #else
 
-            popup->setContentSize({360.f, 280.f});
-            popup->setPosition({180.f, 140.f});
+            auto popup = CCScale9Sprite::create(
+                "GJ_square01.png"
+            );
+
+            popup->setContentSize({
+                360.f,
+                280.f
+            });
+
+            popup->setPosition({
+                180.f,
+                140.f
+            });
 
             auto title = CCLabelBMFont::create(
                 "DLL Bot Downgrade",
                 "goldFont.fnt"
             );
 
-            title->setPosition({180.f, 245.f});
+            title->setPosition({
+                180.f,
+                245.f
+            });
+
             title->setScale(.65f);
-            title->setAnchorPoint({0.5f, 0.5f});
+            title->setAnchorPoint({
+                .5f,
+                .5f
+            });
 
             popup->addChild(title);
 
@@ -483,8 +658,12 @@ void open() {
                 stableX,
                 headerY
             });
+
             stableHeader->setScale(.5f);
-            stableHeader->setAnchorPoint({0.5f, 0.5f});
+            stableHeader->setAnchorPoint({
+                .5f,
+                .5f
+            });
 
             popup->addChild(stableHeader);
 
@@ -497,13 +676,21 @@ void open() {
                 devX,
                 headerY
             });
+
             devHeader->setScale(.5f);
-            devHeader->setAnchorPoint({0.5f, 0.5f});
+            devHeader->setAnchorPoint({
+                .5f,
+                .5f
+            });
 
             popup->addChild(devHeader);
 
             auto menu = CCMenu::create();
-            menu->setPosition({0, 0});
+            menu->setPosition({
+                0.f,
+                0.f
+            });
+
             popup->addChild(menu);
 
             for (size_t i = 0; i < stable.size(); ++i) {
@@ -511,7 +698,8 @@ void open() {
                     menu,
                     stable[i],
                     stableX,
-                    startY - static_cast<float>(i) * spacing,
+                    startY -
+                        static_cast<float>(i) * spacing,
                     70.f,
                     .5f,
                     .5f
@@ -523,7 +711,8 @@ void open() {
                     menu,
                     dev[i],
                     devX,
-                    startY - static_cast<float>(i) * spacing,
+                    startY -
+                        static_cast<float>(i) * spacing,
                     70.f,
                     .5f,
                     .5f
@@ -532,43 +721,13 @@ void open() {
 
 #endif
 
-            auto closeMenu = CCMenu::create();
-            closeMenu->setPosition({0, 0});
-            popup->addChild(closeMenu);
+            auto scene =
+                CCDirector::sharedDirector()
+                    ->getRunningScene();
 
-            auto closeButton = CCMenuItemSpriteExtra::create(
-                CCSprite::createWithSpriteFrameName(
-                    "GJ_closeBtn_001.png"
-                ),
-                popup,
-                [](CCObject*) {
-                    if (auto scene = CCDirector::sharedDirector()
-                        ->getRunningScene()) {
-                        // The popup is removed by its parent layer.
-                    }
-                }
-            );
-
-#if defined(GEODE_IS_ANDROID) || defined(GEODE_IS_IOS)
-            closeButton->setPosition({286.f, 204.f});
-#else
-            closeButton->setPosition({346.f, 264.f});
-#endif
-
-            closeMenu->addChild(closeButton);
-
-            auto alert = FLAlertLayer::create(
-                "DLL Bot",
-                "Select a release to install.",
-                "Close"
-            );
-
-            alert->m_scene = layer;
-
-            popup->addChild(layer);
-            layer->addChild(popup);
-
-            alert->show();
+            if (scene) {
+                scene->addChild(popup, 1000);
+            }
         }
     );
 }
