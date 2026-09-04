@@ -325,8 +325,7 @@ public:
 
         ret->m_release = release;
         ret->m_button = button;
-
-        ret->autorelease();
+        
         return ret;
     }
 
