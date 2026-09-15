@@ -15,7 +15,7 @@ using namespace geode::prelude;
 namespace downgrade {
 
 static constexpr char const* RELEASES_URL =
-    "https://api.github.com/repos/Homeless-Team/Dll-Bot/releases";
+    "https://api.github.com/repos/NeonGD1667/Dll-Bot/releases";
 
 static constexpr char const* MOD_FILE =
     "homeless.dll-bot.geode";
