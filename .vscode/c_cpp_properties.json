@@ -1,7 +1,7 @@
 {
     "configurations": [
         {
-            "name": "Super Hack",
+            "name": "DLL Bot",
             "includePath": [
                 "${workspaceFolder}/**",
                 "C:/Users/DELL/Documents/Geode/**",
