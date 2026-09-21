@@ -57,7 +57,10 @@ else()
     message(STATUS "Found Geode: $ENV{GEODE_SDK}")
 endif()
 
-add_subdirectory($ENV{GEODE_SDK} ${CMAKE_CURRENT_BINARY_DIR}/geode)
+add_subdirectory(
+    $ENV{GEODE_SDK}
+    ${CMAKE_CURRENT_BINARY_DIR}/geode
+)
 
 setup_geode_mod(${PROJECT_NAME})
 
@@ -70,7 +73,9 @@ CPMAddPackage(
     GIT_TAG v3.11.3
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE
+# Geode already uses the plain signature of target_link_libraries,
+# so nlohmann_json must use the same signature.
+target_link_libraries(${PROJECT_NAME}
     nlohmann_json::nlohmann_json
 )
 
@@ -85,7 +90,10 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 
 if (WIN32)
-    set(DESKTOP_GEODE_MODS_DIR "C:/Users/drean/OneDrive/Desktop/GeometryDash/geode/mods")
+    set(
+        DESKTOP_GEODE_MODS_DIR
+        "C:/Users/drean/OneDrive/Desktop/GeometryDash/geode/mods"
+    )
 
     add_custom_target(${PROJECT_NAME}_DEPLOY_DESKTOP ALL
         DEPENDS ${PROJECT_NAME}_PACKAGE
