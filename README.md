@@ -1,7 +1,6 @@
 # DLL Bot
 
 A high-performance Geometry Dash DLL bot developed by **Homeless Team**.
-[![Build Geode Mod](https://github.com/NeonGD1667/DLL-Bot/actions/workflows/build.yml/badge.svg)](https://github.com/NeonGD1667/DLL-Bot/actions/workflows/build.yml)
 ## Credits
 
 This project is developed by **Homeless Team**.
