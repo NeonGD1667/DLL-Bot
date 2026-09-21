@@ -2,8 +2,10 @@
 
 A high-performance Geometry Dash replay bot developed by **Homeless Team**.
 
-[![Build Geode Mod](https://github.com/NeonGD1667/DLL-Bot/actions/workflows/build.yml/badge.svg)](https://github.com/NeonGD1667/DLL-Bot/actions/workflows/build.yml)
+[![Build Stupid Mod](https://github.com/NeonGD1667/DLL-Bot/actions/workflows/build.yml/badge.svg)](https://github.com/NeonGD1667/DLL-Bot/actions/workflows/build.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/NeonGD1667/DLL-Bot?include_prereleases)](https://github.com/NeonGD1667/DLL-Bot/releases)
+[![Total Downloads](https://img.shields.io/github/downloads/NeonGD1667/DLL-Bot/total)](https://github.com/NeonGD1667/DLL-Bot/releases)
+[![Latest Downloads](https://img.shields.io/github/downloads/NeonGD1667/DLL-Bot/latest/total)](https://github.com/NeonGD1667/DLL-Bot/releases/latest)
 [![GitHub Stars](https://img.shields.io/github/stars/NeonGD1667/DLL-Bot)](https://github.com/NeonGD1667/DLL-Bot/stargazers)
 [![GitHub Issues](https://img.shields.io/github/issues/NeonGD1667/DLL-Bot)](https://github.com/NeonGD1667/DLL-Bot/issues)
 [![License](https://img.shields.io/github/license/NeonGD1667/DLL-Bot)](https://github.com/NeonGD1667/DLL-Bot/blob/main/LICENSE)
