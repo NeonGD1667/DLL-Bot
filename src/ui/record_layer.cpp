@@ -62,7 +62,7 @@ private:
   geode::async::TaskHolder<geode::utils::web::WebResponse> downloadTask;
 
 protected:
-  bool setup() override {
+  bool setup() {
     this->setTitle("Macro Index");
 
     auto mod = Mod::get();
