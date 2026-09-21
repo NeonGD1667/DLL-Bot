@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64")
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
@@ -25,7 +25,6 @@ add_library(${PROJECT_NAME} SHARED
     src/renderer/renderer.cpp
     src/download/downgrade.cpp
     src/download/updater.cpp
-   
 
     src/hacks/other.cpp
     src/hacks/tps_bypass.cpp
@@ -46,7 +45,7 @@ add_library(${PROJECT_NAME} SHARED
     src/ui/macro_cell.cpp
     src/ui/clickbot_layer.cpp
     src/ui/button_setting.cpp
-    
+
     src/practice_fixes/input.cpp
     src/practice_fixes/player.cpp
     src/practice_fixes/play_layer.cpp
@@ -62,6 +61,20 @@ add_subdirectory($ENV{GEODE_SDK} ${CMAKE_CURRENT_BINARY_DIR}/geode)
 
 setup_geode_mod(${PROJECT_NAME})
 
+
+# nlohmann/json
+# Header-only JSON library
+CPMAddPackage(
+    NAME nlohmann_json
+    GITHUB_REPOSITORY nlohmann/json
+    GIT_TAG v3.11.3
+)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    nlohmann_json::nlohmann_json
+)
+
+
 # SLC include root
 # Allows SLC headers to use:
 #   #include "util.hpp"
@@ -69,6 +82,7 @@ setup_geode_mod(${PROJECT_NAME})
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/gdr/slc
 )
+
 
 if (WIN32)
     set(DESKTOP_GEODE_MODS_DIR "C:/Users/drean/OneDrive/Desktop/GeometryDash/geode/mods")
@@ -86,6 +100,7 @@ if (WIN32)
         VERBATIM
     )
 endif()
+
 
 if (MSVC)
     # Disable Link-Time Code Generation (WholeProgramOptimization)
