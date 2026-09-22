@@ -386,9 +386,9 @@ void Macro::updateInfo(PlayLayer* pl) {
             ? "N/A"
             : author;
 
-    g.macro.botInfo.name = "xdBot";
-    g.macro.botInfo.version = xdBotVersion;
-    g.macro.xdBotMacro = true;
+    g.macro.botInfo.name = "Dll Bot";
+    g.macro.botInfo.version = DllBotVersion;
+    g.macro.DllBotMacro = true;
 }
 
 void Macro::updateTPS() {
@@ -910,8 +910,8 @@ std::optional<Macro> Macro::importGDR2(
             ? 0
             : macro.inputs.back().frame;
 
-    macro.xdBotMacro =
-        macro.botInfo.name == "xdBot";
+    macro.DllBotMacro =
+        macro.botInfo.name == "Dll Bot";
 
     return macro;
 }
@@ -1349,7 +1349,7 @@ bool Macro::loadSLC2(
         newMacro.duration = 0.0;
     }
 
-    newMacro.xdBotMacro = false;
+    newMacro.DllBotMacro = false;
 
     Global::get().macro =
         std::move(newMacro);
@@ -1735,7 +1735,7 @@ bool Macro::loadSLC3(
         newMacro.duration = 0.0;
     }
 
-    newMacro.xdBotMacro = false;
+    newMacro.DllBotMacro = false;
 
     Global::get().macro =
         std::move(newMacro);

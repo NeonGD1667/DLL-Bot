@@ -1,4 +1,3 @@
-
 #include "hacks/layout_mode.hpp"
 #include "hacks/show_trajectory.hpp"
 #include "includes.hpp"
@@ -81,7 +80,7 @@ class $modify(CCKeyboardDispatcher) {
 
 namespace {
 
-bool shouldHandleXdBotKeybind(bool down, bool repeat) {
+bool shouldHandleDllBotKeybind(bool down, bool repeat) {
   if (!down || repeat)
     return false;
 
@@ -89,7 +88,7 @@ bool shouldHandleXdBotKeybind(bool down, bool repeat) {
 }
 
 void handleOpenMenuKeybind(Keybind const &, bool down, bool repeat, double) {
-  if (!shouldHandleXdBotKeybind(down, repeat))
+  if (!shouldHandleDllBotKeybind(down, repeat))
     return;
 
   auto &g = Global::get();
@@ -102,14 +101,14 @@ void handleOpenMenuKeybind(Keybind const &, bool down, bool repeat, double) {
 }
 
 void handleToggleMacroKeybind(Keybind const &, bool down, bool repeat, double) {
-  if (!shouldHandleXdBotKeybind(down, repeat))
+  if (!shouldHandleDllBotKeybind(down, repeat))
     return;
 
   Macro::togglePlaying();
 }
 
 void handleStepForward(Keybind const &, bool down, bool repeat, double) {
-  if (!shouldHandleXdBotKeybind(down, repeat))
+  if (!shouldHandleDllBotKeybind(down, repeat))
     return;
 
   Global::frameStep(1);
@@ -121,10 +120,20 @@ void handleHoldForward(Keybind const &, bool down, bool repeat, double) {
 }
 
 void handleToggleStepper(Keybind const &, bool down, bool repeat, double) {
-  if (!shouldHandleXdBotKeybind(down, repeat))
+  if (!shouldHandleDllBotKeybind(down, repeat))
     return;
 
   Global::toggleFrameStepper();
+}
+
+// Macro Swapper: mở lại UI Load Macro có sẵn — không tạo hệ thống chọn
+// macro mới. MacroCell::onLoad() đã tự hỏi confirm nếu macro hiện tại
+// không rỗng, nên không cần thêm logic bảo vệ macro ở đây.
+void handleMacroSwapper(Keybind const &, bool down, bool repeat, double) {
+  if (!shouldHandleDllBotKeybind(down, repeat))
+    return;
+
+  LoadMacroLayer::open(nullptr, nullptr, false);
 }
 
 } // namespace
@@ -152,5 +161,11 @@ $on_mod(Loaded) {
       "keybind_toggle_stepper",
       +[](Keybind const &keybind, bool down, bool repeat, double timestamp) {
         handleToggleStepper(keybind, down, repeat, timestamp);
+      });
+
+  geode::listenForKeybindSettingPresses(
+      "keybind_macro_swapper",
+      +[](Keybind const &keybind, bool down, bool repeat, double timestamp) {
+        handleMacroSwapper(keybind, down, repeat, timestamp);
       });
 }

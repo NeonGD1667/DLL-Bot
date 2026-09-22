@@ -184,7 +184,7 @@ int Global::getCurrentFrame(bool editor) {
 
     frame = static_cast<int>(editorLayer->m_gameState.m_currentProgress / 2);
   } else {
-    if (!g.macro.xdBotMacro && g.state == state::playing) {
+    if (!g.macro.DllBotMacro && g.state == state::playing) {
       frame = pl->m_gameState.m_currentProgress;
     } else {
       frame = static_cast<int>(pl->m_gameState.m_levelTime * getTPS());

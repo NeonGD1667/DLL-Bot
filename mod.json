@@ -1,0 +1,421 @@
+{
+    "geode": "5.9.0",
+    "gd": {
+        "win": "2.2081",
+        "android": "2.2081",
+        "mac": "2.2081",
+        "ios": "2.2081"
+    },
+    "version": "v3.0.1",
+    "id": "homeless.dll-bot",
+    "name": "DLL Bot",
+    "developers": [
+        "Homeless Team",
+        "danhnt",
+        "chickendev1667"
+    ],
+    "description": "Ultimate Bot for GD",
+    "dependencies": {
+        "eclipse.ffmpeg-api": {
+            "version": ">=v2.0.0",
+            "required": true,
+            "platforms": [
+                "android",
+                "ios"
+            ]
+        },
+        "geode.custom-keybinds": {
+            "version": ">=v2.1.0",
+            "required": true,
+            "platforms": [
+                "win",
+                "android",
+                "mac",
+                "ios"
+            ]
+        },
+        "thesillydoggo.blur-api": {
+            "version": ">=1.0.0",
+            "required": true,
+            "platforms": [
+                "win",
+                "android",
+                "mac",
+                "ios"
+            ]
+        }
+    },
+    "settings": {
+        "button-setting": {
+            "type": "custom:button",
+            "name": "Open Menu"
+        },
+        "downgrade-button": {
+            "type": "custom:button",
+            "name": "Downgrade DLL Bot"
+        },
+        "update_channel": {
+            "type": "string",
+            "name": "Update Channel",
+            "description": "Selects which update channel DLL Bot should use.",
+            "default": "Main",
+            "one-of": [
+                "Main",
+                "Dev-beta"
+            ]
+        },
+        "version-manager": {
+            "type": "custom:version-manager",
+            "name": ""
+        },
+        "keybinds-title": {
+            "type": "title",
+            "name": "Keybinds"
+        },
+        "keybind_open_menu": {
+            "type": "keybind",
+            "name": "Open Menu",
+            "description": "Opens or closes the DLL Bot menu.",
+            "default": [
+                "LeftMenu",
+                "RightMenu"
+            ]
+        },
+        "keybind_toggle_macro": {
+            "type": "keybind",
+            "name": "Toggle Macro",
+            "description": "Turns macro playback on or off.",
+            "default": "U"
+        },
+        "keybind_toggle_autoclicker": {
+            "type": "keybind",
+            "name": "Toggle Autoclicker",
+            "description": "Turns the autoclicker on or off.",
+            "default": []
+        },
+        "keybind_toggle_stepper": {
+            "type": "keybind",
+            "name": "Toggle Frame Stepper",
+            "description": "Turns the frame stepper on or off.",
+            "default": "K"
+        },
+        "keybind_step_forward": {
+            "type": "keybind",
+            "name": "Step Forward",
+            "description": "Steps one frame forward when the frame stepper is enabled.",
+            "default": "G"
+        },
+        "keybind_hold_forward": {
+            "type": "keybind",
+            "name": "Hold Forward",
+            "description": "Continuously steps forward.",
+            "default": "H"
+        },
+        "keybind_macro_swapper": {
+            "type": "keybind",
+            "name": "Macro Swapper",
+            "description": "Opens the Macro Swapper.",
+            "default": "F6"
+        },
+        "editor_keybinds": {
+            "name": "Keybinds on editor",
+            "description": "Enables keybinds while on the level editor.",
+            "type": "bool",
+            "default": false,
+            "platforms": [
+                "win"
+            ]
+        },
+        "disable_keybinds": {
+            "name": "Disable keybinds",
+            "description": "Disables all keybinds.",
+            "type": "bool",
+            "default": false,
+            "platforms": [
+                "win"
+            ]
+        },
+        "recording_only_keybinds": {
+            "name": "Keybinds only while recording",
+            "description": "Keybinds only work while recording a macro.",
+            "type": "bool",
+            "default": false,
+            "platforms": [
+                "win"
+            ]
+        },
+        "bot-title": {
+            "type": "title",
+            "name": "Bot"
+        },
+        "macro_accuracy": {
+            "type": "string",
+            "name": "Accuracy",
+            "default": "Frame Fixes",
+            "one-of": [
+                "Vanilla",
+                "Input Fixes",
+                "Frame Fixes"
+            ]
+        },
+        "frame_offset": {
+            "name": "Frame Offset",
+            "description": "Adds a frame offset when recording or playing macros",
+            "type": "int",
+            "default": 0,
+            "min": -8,
+            "max": 8
+        },
+        "sync_tps_fps": {
+            "name": "Sync TPS With FPS",
+            "description": "Synchronizes the rendering FPS with the target TPS of the TPS Bypass",
+            "type": "bool",
+            "default": true
+        },
+        "endscreen_button": {
+            "name": "Button at Endscreen",
+            "description": "Shows the menu button at the endscreen.",
+            "type": "bool",
+            "default": false
+        },
+        "ffmpeg_path": {
+            "name": "ffmpeg.exe Path",
+            "description": "The path for ffmpeg.exe, needed to use render.",
+            "type": "file",
+            "default": "",
+            "platforms": [
+                "win"
+            ]
+        },
+        "macros_folder": {
+            "name": "Macro Save Location",
+            "type": "folder",
+            "default": "{gd_dir}/macros"
+        },
+        "autosaves_folder": {
+            "name": "Auto Saves Location",
+            "type": "folder",
+            "default": "{gd_dir}/autosaves"
+        },
+        "render_folder": {
+            "name": "Render Save Location",
+            "type": "folder",
+            "default": "{gd_dir}/renders"
+        },
+        "disable_speedhack": {
+            "name": "Auto Disable Speedhack",
+            "description": "Disables Speedhack when exiting a level.",
+            "type": "bool",
+            "default": true
+        },
+        "auto_stop_playing": {
+            "name": "Auto Stop Playing",
+            "description": "Stops playing the macro when it ends.",
+            "type": "bool",
+            "default": true
+        },
+        "lock_delta": {
+            "name": "Lock Delta",
+            "description": "Locks the delta.",
+            "type": "bool",
+            "default": false
+        },
+        "frame_fixes_limit": {
+            "name": "Frame Fixes Limit in FPS",
+            "description": "Limits how many frame fixes per second there will be.",
+            "type": "int",
+            "default": 240,
+            "min": 1
+        },
+        "macro_step_shift_enabled": {
+            "name": "Custom Step Size",
+            "description": "Enables holding Shift to step a custom amount of frames.",
+            "type": "bool",
+            "default": false
+        },
+        "macro_step_shift_size": {
+            "name": "Step Size Amount",
+            "description": "Amount of frames to step when holding shift.",
+            "type": "int",
+            "default": 10,
+            "min": 1,
+            "max": 100
+        },
+        "macro_hold_step_enabled": {
+            "name": "Frame St. Hold",
+            "description": "Enables custom hold step sizes.",
+            "type": "bool",
+            "default": false
+        },
+        "macro_hold_step_size": {
+            "name": "Hold Step Amount",
+            "description": "How many frames to step forward per tick while holding the frame stepper key.",
+            "type": "int",
+            "default": 1,
+            "min": 1,
+            "max": 100
+        },
+        "macro_hold_step_delay": {
+            "name": "Hold Step Delay (ms)",
+            "description": "Delay in milliseconds between steps when holding the frame stepper key.",
+            "type": "int",
+            "default": 300,
+            "min": 0,
+            "max": 1000
+        },
+        "mobile_record_audio_fix": {
+            "name": "Mobile Record Audio Fix",
+            "description": "Changes how mobile Record Audio avoids ultra-fast audio in renders.",
+            "type": "string",
+            "default": "Auto",
+            "one-of": [
+                "Auto",
+                "Realtime Only",
+                "Raw Stretch",
+                "Original"
+            ],
+            "platforms": [
+                "android",
+                "ios"
+            ]
+        },
+        "default_macro_format": {
+            "type": "string",
+            "name": "Default Macro Format",
+            "description": "Sets the default format used when saving macros.",
+            "default": "GDR2",
+            "one-of": [
+                "GDR2",
+                "SLC",
+                "SLC2",
+                "SLC3"
+            ]
+        },
+        "macro_index_url": {
+            "name": "Macro Index URL",
+            "description": "URL to the macro index JSON file. Change to a custom index if self-hosting.",
+            "type": "string",
+            "default": "https://raw.githubusercontent.com/Homeless-Team/dll-bot-macro-index/main/index.json"
+        },
+        "menu-title": {
+            "type": "title",
+            "name": "Menu"
+        },
+        "background_color": {
+            "name": "Menu background color",
+            "type": "color",
+            "default": "#334499"
+        },
+        "rgb_ui": {
+            "name": "RGB UI",
+            "description": "Change the bot's UI color to a continuous RGB cycle effect instead of a static color.",
+            "type": "bool",
+            "default": false
+        },
+        "menu_background_opacity": {
+            "name": "Menu background opacity",
+            "description": "Opacity of the main DLL Bot menu background.",
+            "type": "int",
+            "default": 255,
+            "min": 40,
+            "max": 255
+        },
+        "menu_glow_enabled": {
+            "name": "Animated glow background",
+            "description": "Shows the moving glow balls behind the menu.",
+            "type": "bool",
+            "default": true
+        },
+        "menu_glow_color_blue": {
+            "name": "Glow blue color",
+            "type": "color",
+            "default": "#001E96"
+        },
+        "menu_glow_color_violet": {
+            "name": "Glow violet color",
+            "type": "color",
+            "default": "#50009B"
+        },
+        "menu_glow_opacity": {
+            "name": "Glow opacity",
+            "description": "Opacity of the animated glow balls.",
+            "type": "int",
+            "default": 255,
+            "min": 0,
+            "max": 255
+        },
+        "level_settings_button": {
+            "name": "Show Button At Settings",
+            "description": "Shows the DLL Bot button in the level settings layer.",
+            "type": "bool",
+            "default": false
+        },
+        "restore_page": {
+            "name": "Restore Settings Page",
+            "description": "Saves the page you were in when you closed the menu.",
+            "type": "bool",
+            "default": true
+        },
+        "homeless_pbo": {
+            "name": "homeless: Fast PBO Frame Capture",
+            "description": "Asynchronously reads frames from the GPU to prevent game freezes during rendering. Speeds up rendering significantly.",
+            "type": "bool",
+            "default": true
+        },
+        "homeless_multithreading": {
+            "name": "homeless: Multithreaded Render Queue",
+            "description": "Sends captured frames to a background thread queue instead of blocking the game process.",
+            "type": "bool",
+            "default": true
+        },
+        "homeless_hw_accel": {
+            "name": "homeless: Hardware Acceleration",
+            "description": "Selects the video codec. CPU is the slowest, NVIDIA/AMD uses your GPU video chip.",
+            "type": "string",
+            "default": "CPU",
+            "one-of": [
+                "CPU",
+                "NVIDIA (NVENC)",
+                "AMD (AMF)",
+                "Intel (QSV)"
+            ]
+        },
+        "homeless_aggressive_presets": {
+            "name": "homeless: Aggressive Presets (CPU)",
+            "description": "Sets FFmpeg to 'ultrafast'. Massive speed boost for CPU rendering at the cost of larger file size.",
+            "type": "bool",
+            "default": true
+        },
+        "homeless_vflip_manual": {
+            "name": "homeless: Fast C++ VFlip",
+            "description": "Flips the image in code instead of using FFmpeg's video filter. Saves filtering time.",
+            "type": "bool",
+            "default": true
+        }
+    },
+    "resources": {
+        "sprites": [
+            "resources/GJ_commentSide2_001_White.png",
+            "resources/GJ_commentTop2_001_White.png",
+            "resources/telegram.png"
+        ],
+        "files": [
+            "resources/default_hold_click.mp3",
+            "resources/default_release_click.mp3",
+            "resources/default_hold_left.mp3",
+            "resources/default_release_left.mp3",
+            "resources/default_hold_right.mp3",
+            "resources/default_release_right.mp3"
+        ]
+    },
+    "links": {
+        "source": "https://github.com/NeonGD1667/DLL-Bot",
+        "community": "https://discord.gg/Wk6QcKdXck"
+    },
+    "tags": [
+        "cheat",
+        "gameplay",
+        "content",
+        "utility"
+    ]
+}

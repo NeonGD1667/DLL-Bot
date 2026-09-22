@@ -49,11 +49,11 @@ struct input : gdr::Input {
 };
 
 struct Macro : gdr::Replay<Macro, input> {
-    Macro() : Replay("xdBot", xdBotVersion.c_str()) {}
+    Macro() : Replay("Dll Bot", DllBotVersion.c_str()) {}
 
     bool canChangeFPS = true;
     uintptr_t seed = 0;
-    bool xdBotMacro = true;
+    bool DllBotMacro = true;
     bool platformer = false;
 
     static void recordAction(
