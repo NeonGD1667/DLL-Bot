@@ -2,10 +2,31 @@
 
 #include <Geode/Geode.hpp>
 #include <Geode/loader/Mod.hpp>
+#include <Geode/utils/web.hpp>
+
+#include <fstream>
 
 using namespace geode::prelude;
 
 namespace {
+
+constexpr char const* REPOSITORY =
+    "NeonGD1667/DLL-Bot";
+
+std::string getCurrentVersion() {
+    return "v" + Mod::get()->getVersion().toString();
+}
+
+std::filesystem::path getModPath() {
+    return Mod::get()->getSaveDir().parent_path()
+        / (Mod::get()->getID() + ".geode");
+}
+
+std::filesystem::path getTempPath() {
+    auto path = getModPath();
+    path += ".tmp";
+    return path;
+}
 
 void showComingSoon(char const* title) {
     FLAlertLayer::create(
@@ -15,14 +36,119 @@ void showComingSoon(char const* title) {
     )->show();
 }
 
+void showAlert(
+    char const* title,
+    char const* message
+) {
+    FLAlertLayer::create(
+        title,
+        message,
+        "OK"
+    )->show();
 }
 
-Result<std::shared_ptr<SettingV3>> VersionManagerSettingV3::parse(
+} // namespace
+
+
+/*
+ * UpdaterClient
+ */
+
+async::TaskHolder<web::WebResponse>
+UpdaterClient::s_getHolder;
+
+void UpdaterClient::getLatestRelease(
+    ReleaseCallback callback
+) {
+    web::WebRequest req;
+    req.userAgent("geode");
+
+    auto url =
+        "https://api.github.com/repos/" +
+        std::string(REPOSITORY) +
+        "/releases/latest";
+
+    s_getHolder.spawn(
+        req.get(url),
+        [callback](web::WebResponse res) {
+            GithubReleaseResponseDto dto;
+
+            if (res.ok()) {
+                auto json = res.json();
+
+                if (json) {
+                    auto const& root = json.unwrap();
+
+                    if (root.contains("tag_name")) {
+                        dto.tagName =
+                            root["tag_name"].asString().unwrapOr("");
+
+                        dto.valid =
+                            !dto.tagName.empty();
+                    }
+                }
+            }
+
+            callback(dto, res);
+        }
+    );
+}
+
+void UpdaterClient::getLatestDownload(
+    DownloadCallback callback
+) {
+    web::WebRequest req;
+    req.userAgent("geode");
+
+    /*
+     * GitHub release asset.
+     *
+     * DLL Bot -> White Bot là cùng một repo,
+     * nên updater vẫn dùng repo DLL-Bot.
+     */
+    auto url =
+        "https://github.com/" +
+        std::string(REPOSITORY) +
+        "/releases/latest/download/" +
+        Mod::get()->getID() +
+        ".geode";
+
+    auto tempPath = getTempPath();
+
+    s_getHolder.spawn(
+        req.get(url),
+        [callback, tempPath](web::WebResponse res) {
+            EmptyResponseDto dto;
+
+            if (res.ok()) {
+                auto result = res.into(tempPath);
+
+                if (!result) {
+                    log::error(
+                        "Failed to save update: {}",
+                        result.unwrapErr()
+                    );
+                }
+            }
+
+            callback(dto, res);
+        }
+    );
+}
+
+
+/*
+ * Version Manager Setting
+ */
+
+Result<std::shared_ptr<SettingV3>>
+VersionManagerSettingV3::parse(
     std::string const& key,
     std::string const& modID,
     matjson::Value const& json
 ) {
-    auto res = std::make_shared<VersionManagerSettingV3>();
+    auto res =
+        std::make_shared<VersionManagerSettingV3>();
 
     auto root = checkJson(
         json,
@@ -45,11 +171,15 @@ Result<std::shared_ptr<SettingV3>> VersionManagerSettingV3::parse(
     );
 }
 
-bool VersionManagerSettingV3::load(matjson::Value const&) {
+bool VersionManagerSettingV3::load(
+    matjson::Value const&
+) {
     return true;
 }
 
-bool VersionManagerSettingV3::save(matjson::Value&) const {
+bool VersionManagerSettingV3::save(
+    matjson::Value&
+) const {
     return true;
 }
 
@@ -59,7 +189,13 @@ bool VersionManagerSettingV3::isDefaultValue() const {
 
 void VersionManagerSettingV3::reset() {}
 
-SettingNodeV3* VersionManagerSettingV3::createNode(float width) {
+
+/*
+ * Version Manager Node
+ */
+
+SettingNodeV3*
+VersionManagerSettingV3::createNode(float width) {
     return VersionManagerSettingNodeV3::create(
         std::static_pointer_cast<VersionManagerSettingV3>(
             shared_from_this()
@@ -80,6 +216,7 @@ bool VersionManagerSettingNodeV3::init(
     /*
      * Check for updates
      */
+
     auto checkSprite =
         CCSprite::createWithSpriteFrameName(
             "GJ_updateBtn_001.png"
@@ -90,19 +227,21 @@ bool VersionManagerSettingNodeV3::init(
 
     checkSprite->setScale(0.45f);
 
-    auto checkButton = CCMenuItemSpriteExtra::create(
-        checkSprite,
-        this,
-        menu_selector(
-            VersionManagerSettingNodeV3::onCheckUpdate
-        )
-    );
+    auto checkButton =
+        CCMenuItemSpriteExtra::create(
+            checkSprite,
+            this,
+            menu_selector(
+                VersionManagerSettingNodeV3::onCheckUpdate
+            )
+        );
 
     menu->addChild(checkButton);
 
     /*
      * Downgrade
      */
+
     auto downgradeSprite =
         CCSprite::createWithSpriteFrameName(
             "GJ_downloadBtn_001.png"
@@ -113,13 +252,14 @@ bool VersionManagerSettingNodeV3::init(
 
     downgradeSprite->setScale(0.45f);
 
-    auto downgradeButton = CCMenuItemSpriteExtra::create(
-        downgradeSprite,
-        this,
-        menu_selector(
-            VersionManagerSettingNodeV3::onDowngrade
-        )
-    );
+    auto downgradeButton =
+        CCMenuItemSpriteExtra::create(
+            downgradeSprite,
+            this,
+            menu_selector(
+                VersionManagerSettingNodeV3::onDowngrade
+            )
+        );
 
     menu->addChild(downgradeButton);
 
@@ -139,7 +279,61 @@ void VersionManagerSettingNodeV3::updateState(
 void VersionManagerSettingNodeV3::onCheckUpdate(
     CCObject*
 ) {
-    showComingSoon("Check for Updates");
+    UpdaterClient::getLatestRelease(
+        [this](
+            GithubReleaseResponseDto const& release,
+            web::WebResponse& response
+        ) {
+            if (!response.ok() || !release.valid) {
+                showAlert(
+                    "Update",
+                    "Failed to check for updates."
+                );
+                return;
+            }
+
+            auto currentVersion =
+                getCurrentVersion();
+
+            if (release.tagName == currentVersion) {
+                showAlert(
+                    "Update",
+                    "White Bot is already up to date."
+                );
+                return;
+            }
+
+            log::info(
+                "Update available: {} -> {}",
+                currentVersion,
+                release.tagName
+            );
+
+            /*
+             * Download update to .geode.tmp
+             */
+
+            UpdaterClient::getLatestDownload(
+                [this](
+                    EmptyResponseDto const&,
+                    web::WebResponse& downloadResponse
+                ) {
+                    if (!downloadResponse.ok()) {
+                        showAlert(
+                            "Update",
+                            "Failed to download update."
+                        );
+                        return;
+                    }
+
+                    showAlert(
+                        "Update",
+                        "Update downloaded. Restart to apply."
+                    );
+                }
+            );
+        }
+    );
 }
 
 void VersionManagerSettingNodeV3::onDowngrade(
@@ -157,7 +351,8 @@ VersionManagerSettingNodeV3::create(
     std::shared_ptr<VersionManagerSettingV3> setting,
     float width
 ) {
-    auto ret = new VersionManagerSettingNodeV3();
+    auto ret =
+        new VersionManagerSettingNodeV3();
 
     if (
         ret &&
@@ -171,24 +366,33 @@ VersionManagerSettingNodeV3::create(
     return nullptr;
 }
 
-bool VersionManagerSettingNodeV3::hasUncommittedChanges() const {
+bool VersionManagerSettingNodeV3::hasUncommittedChanges()
+    const {
     return false;
 }
 
-bool VersionManagerSettingNodeV3::hasNonDefaultValue() const {
+bool VersionManagerSettingNodeV3::hasNonDefaultValue()
+    const {
     return false;
 }
 
 std::shared_ptr<VersionManagerSettingV3>
 VersionManagerSettingNodeV3::getSetting() const {
-    return std::static_pointer_cast<VersionManagerSettingV3>(
+    return std::static_pointer_cast<
+        VersionManagerSettingV3
+    >(
         SettingNodeV3::getSetting()
     );
 }
 
+
+/*
+ * Register custom setting
+ */
+
 $execute {
     (void)Mod::get()->registerCustomSettingType(
-        "version-manager",
+        "custom:version-manager",
         &VersionManagerSettingV3::parse
     );
 }

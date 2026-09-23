@@ -4,6 +4,7 @@
 #include "pathfinder.hpp"
 #include "practice_fixes/practice_fixes.hpp"
 #include "ui/record_layer.hpp"
+#include "src/hacks/fake_taps.hpp"
 
 #include <Geode/modify/GJBaseGameLayer.hpp>
 #include <Geode/modify/EditorUI.hpp>
@@ -365,17 +366,32 @@ class $modify(BGLHook, GJBaseGameLayer) {
         if (Macro::flipControls())
           input.player2 = !input.player2;
 
-        GJBaseGameLayer::handleButton(input.down, input.button, input.player2);
-      }
+       GJBaseGameLayer::handleButton(input.down, input.button, input.player2);
 
-      g.currentAction++;
-      g.safeMode = true;
-    }
+auto* player = input.player2 ? m_player2 : m_player1;
+
+if (player) {
+    auto position =
+        player->getParent()->convertToWorldSpace(
+            player->getPosition()
+        );
+
+    int fakePlayer = input.player2 ? 1 : 0;
+
+    if (input.down)
+        FakeTaps::press(fakePlayer, position);
+    else
+        FakeTaps::release(fakePlayer);
+}
+}
+
+g.currentAction++;
+g.safeMode = true;
 
     g.respawnFrame = -1;
     m_fields->macroInput = false;
 
-    // NakoMod: Continue Botting — switch from Playing to Recording at the
+    // Neon Mod: Continue Botting — switch from Playing to Recording at the
     // target frame
     if (g.continueFrame != -1 && (int)frame >= g.continueFrame) {
       int targetFrame = g.continueFrame;

@@ -1,6 +1,36 @@
 #pragma once
 
 #include <Geode/loader/SettingV3.hpp>
+#include <Geode/utils/web.hpp>
+
+#include <functional>
+#include <string>
+
+struct EmptyResponseDto {};
+
+struct GithubReleaseResponseDto {
+    bool valid = false;
+    std::string tagName;
+};
+
+class UpdaterClient {
+public:
+    using DownloadCallback = std::function<void(
+        EmptyResponseDto const&,
+        geode::web::WebResponse&
+    )>;
+
+    using ReleaseCallback = std::function<void(
+        GithubReleaseResponseDto const&,
+        geode::web::WebResponse&
+    )>;
+
+    static void getLatestDownload(DownloadCallback callback);
+    static void getLatestRelease(ReleaseCallback callback);
+
+private:
+    static geode::async::TaskHolder<geode::web::WebResponse> s_getHolder;
+};
 
 class VersionManagerSettingV3 : public geode::SettingV3 {
 public:
