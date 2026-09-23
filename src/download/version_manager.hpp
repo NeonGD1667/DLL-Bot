@@ -2,6 +2,7 @@
 
 #include <Geode/loader/SettingV3.hpp>
 #include <Geode/utils/web.hpp>
+#include <Geode/utils/async.hpp>
 
 #include <functional>
 #include <string>
