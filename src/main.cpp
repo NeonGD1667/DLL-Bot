@@ -4,7 +4,7 @@
 #include "pathfinder.hpp"
 #include "practice_fixes/practice_fixes.hpp"
 #include "ui/record_layer.hpp"
-#include "src/hacks/fake_taps.hpp"
+#include "hacks/fake_taps.hpp"
 
 #include <Geode/modify/GJBaseGameLayer.hpp>
 #include <Geode/modify/EditorUI.hpp>
