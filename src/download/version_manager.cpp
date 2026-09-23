@@ -11,10 +11,12 @@ using namespace geode::prelude;
 namespace {
 
 constexpr char const* REPOSITORY =
-    "NeonGD1667/DLL-Bot";
+    "NeonGD1667/White-Bot";
 
 std::string getCurrentVersion() {
-    return "v" + Mod::get()->getVersion().toString();
+    return "v" + fmt::to_string(
+        Mod::get()->getVersion()
+    );
 }
 
 std::filesystem::path getModPath() {
@@ -47,6 +49,10 @@ void showAlert(
     )->show();
 }
 
+bool responseOK(int code) {
+    return code >= 200 && code < 300;
+}
+
 } // namespace
 
 
@@ -61,6 +67,7 @@ void UpdaterClient::getLatestRelease(
     ReleaseCallback callback
 ) {
     web::WebRequest req;
+
     req.userAgent("geode");
 
     auto url =
@@ -77,11 +84,14 @@ void UpdaterClient::getLatestRelease(
                 auto json = res.json();
 
                 if (json) {
-                    auto const& root = json.unwrap();
+                    auto const& root =
+                        json.unwrap();
 
                     if (root.contains("tag_name")) {
                         dto.tagName =
-                            root["tag_name"].asString().unwrapOr("");
+                            root["tag_name"]
+                                .asString()
+                                .unwrapOr("");
 
                         dto.valid =
                             !dto.tagName.empty();
@@ -89,7 +99,10 @@ void UpdaterClient::getLatestRelease(
                 }
             }
 
-            callback(dto, res);
+            callback(
+                dto,
+                res.code()
+            );
         }
     );
 }
@@ -98,13 +111,14 @@ void UpdaterClient::getLatestDownload(
     DownloadCallback callback
 ) {
     web::WebRequest req;
+
     req.userAgent("geode");
 
     /*
      * GitHub release asset.
      *
-     * DLL Bot -> White Bot là cùng một repo,
-     * nên updater vẫn dùng repo DLL-Bot.
+     * DLL Bot -> White Bot vẫn dùng
+     * cùng một repository.
      */
     auto url =
         "https://github.com/" +
@@ -113,7 +127,8 @@ void UpdaterClient::getLatestDownload(
         Mod::get()->getID() +
         ".geode";
 
-    auto tempPath = getTempPath();
+    auto tempPath =
+        getTempPath();
 
     s_getHolder.spawn(
         req.get(url),
@@ -121,7 +136,8 @@ void UpdaterClient::getLatestDownload(
             EmptyResponseDto dto;
 
             if (res.ok()) {
-                auto result = res.into(tempPath);
+                auto result =
+                    res.into(tempPath);
 
                 if (!result) {
                     log::error(
@@ -131,7 +147,10 @@ void UpdaterClient::getLatestDownload(
                 }
             }
 
-            callback(dto, res);
+            callback(
+                dto,
+                res.code()
+            );
         }
     );
 }
@@ -195,9 +214,13 @@ void VersionManagerSettingV3::reset() {}
  */
 
 SettingNodeV3*
-VersionManagerSettingV3::createNode(float width) {
+VersionManagerSettingV3::createNode(
+    float width
+) {
     return VersionManagerSettingNodeV3::create(
-        std::static_pointer_cast<VersionManagerSettingV3>(
+        std::static_pointer_cast<
+            VersionManagerSettingV3
+        >(
             shared_from_this()
         ),
         width
@@ -282,9 +305,12 @@ void VersionManagerSettingNodeV3::onCheckUpdate(
     UpdaterClient::getLatestRelease(
         [this](
             GithubReleaseResponseDto const& release,
-            web::WebResponse& response
+            int responseCode
         ) {
-            if (!response.ok() || !release.valid) {
+            if (
+                !responseOK(responseCode) ||
+                !release.valid
+            ) {
                 showAlert(
                     "Update",
                     "Failed to check for updates."
@@ -295,7 +321,10 @@ void VersionManagerSettingNodeV3::onCheckUpdate(
             auto currentVersion =
                 getCurrentVersion();
 
-            if (release.tagName == currentVersion) {
+            if (
+                release.tagName ==
+                currentVersion
+            ) {
                 showAlert(
                     "Update",
                     "White Bot is already up to date."
@@ -316,9 +345,13 @@ void VersionManagerSettingNodeV3::onCheckUpdate(
             UpdaterClient::getLatestDownload(
                 [this](
                     EmptyResponseDto const&,
-                    web::WebResponse& downloadResponse
+                    int downloadResponseCode
                 ) {
-                    if (!downloadResponse.ok()) {
+                    if (
+                        !responseOK(
+                            downloadResponseCode
+                        )
+                    ) {
                         showAlert(
                             "Update",
                             "Failed to download update."
@@ -363,6 +396,7 @@ VersionManagerSettingNodeV3::create(
     }
 
     CC_SAFE_DELETE(ret);
+
     return nullptr;
 }
 
