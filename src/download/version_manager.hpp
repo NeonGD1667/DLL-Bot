@@ -1,10 +1,11 @@
 #pragma once
 
 #include <Geode/loader/SettingV3.hpp>
-#include <Geode/utils/web.hpp>
 #include <Geode/utils/async.hpp>
+#include <Geode/utils/web.hpp>
 
 #include <functional>
+#include <memory>
 #include <string>
 
 struct EmptyResponseDto {};
@@ -18,12 +19,12 @@ class UpdaterClient {
 public:
     using DownloadCallback = std::function<void(
         EmptyResponseDto const&,
-        geode::web::WebResponse&
+        int
     )>;
 
     using ReleaseCallback = std::function<void(
         GithubReleaseResponseDto const&,
-        geode::web::WebResponse&
+        int
     )>;
 
     static void getLatestDownload(DownloadCallback callback);
