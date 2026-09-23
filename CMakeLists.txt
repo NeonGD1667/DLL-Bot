@@ -23,9 +23,8 @@ add_library(${PROJECT_NAME} SHARED
     src/utils/utils.cpp
     src/gdr/gdr.cpp
     src/renderer/renderer.cpp
-    src/download/downgrade.cpp
-    src/download/updater.cpp
-
+    src/download/version_manager.cpp
+    
     src/hacks/other.cpp
     src/hacks/tps_bypass.cpp
     src/hacks/frame_stepper.cpp
@@ -34,6 +33,7 @@ add_library(${PROJECT_NAME} SHARED
     src/hacks/coin_finder.cpp
     src/hacks/clickbot.cpp
     src/hacks/autoclicker.cpp
+    src/hacks/fake_taps.cpp
 
     src/ui/macro_editor.cpp
     src/ui/macro_timeline_layer.cpp
