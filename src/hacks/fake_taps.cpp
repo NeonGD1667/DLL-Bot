@@ -1,4 +1,3 @@
-// fake_taps.cpp
 #include "fake_taps.hpp"
 
 #include <unordered_map>
@@ -21,6 +20,9 @@ constexpr int FAKE_P1 = 0;
 constexpr int FAKE_P2 = 1;
 
 void renderFakeTouches() {
+    if (!Mod::get()->getSavedValue<bool>("faketaps"))
+        return;
+
     if (g_fakeTouches.empty())
         return;
 
@@ -87,7 +89,6 @@ void renderFakeTouches() {
 }
 
 } // namespace
-
 
 void FakeTaps::press(
     int player,
