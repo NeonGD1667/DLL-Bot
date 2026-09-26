@@ -3,6 +3,7 @@
 
 #include <unordered_map>
 #include <Geode/modify/CCEGLView.hpp>
+#include <Geode/modify/CCDirector.hpp>
 
 using namespace geode::prelude;
 
