@@ -162,3 +162,4 @@ void textChanged(CCTextInputNode*) override {
     ShowTrajectory::get().length = length;
     Mod::get()->setSavedValue("trajectory_length", str);
 }
+};
