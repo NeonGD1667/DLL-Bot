@@ -1075,7 +1075,7 @@ class $modify(PauseLayer) {
             return;
         }
 
-               PauseLayer::goEdit();
+                 PauseLayer::goEdit();
 
         Macro::resetState();
 
@@ -1089,3 +1089,5 @@ class $modify(PauseLayer) {
             if (g.renderer.recordingAudio)
                 g.renderer.stopAudio();
         });
+    }
+};
