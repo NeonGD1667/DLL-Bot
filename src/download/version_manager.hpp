@@ -31,7 +31,9 @@ public:
     static void getLatestRelease(ReleaseCallback callback);
 
 private:
-    static geode::async::TaskHolder<geode::web::WebResponse> s_getHolder;
+    static geode::async::TaskHolder<
+        geode::utils::web::WebResponse
+    > s_getHolder;
 };
 
 class VersionManagerSettingV3 : public geode::SettingV3 {
