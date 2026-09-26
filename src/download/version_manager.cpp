@@ -60,13 +60,14 @@ bool responseOK(int code) {
  * UpdaterClient
  */
 
-async::TaskHolder<web::WebResponse>
-UpdaterClient::s_getHolder;
+geode::async::TaskHolder<
+    geode::utils::web::WebResponse
+> UpdaterClient::s_getHolder;
 
 void UpdaterClient::getLatestRelease(
     ReleaseCallback callback
 ) {
-    web::WebRequest req;
+    geode::utils::web::WebRequest req;
 
     req.userAgent("geode");
 
@@ -77,7 +78,7 @@ void UpdaterClient::getLatestRelease(
 
     s_getHolder.spawn(
         req.get(url),
-        [callback](web::WebResponse res) {
+        [callback](geode::utils::web::WebResponse res) {
             GithubReleaseResponseDto dto;
 
             if (res.ok()) {
@@ -110,16 +111,10 @@ void UpdaterClient::getLatestRelease(
 void UpdaterClient::getLatestDownload(
     DownloadCallback callback
 ) {
-    web::WebRequest req;
+    geode::utils::web::WebRequest req;
 
     req.userAgent("geode");
 
-    /*
-     * GitHub release asset.
-     *
-     * DLL Bot -> White Bot vẫn dùng
-     * cùng một repository.
-     */
     auto url =
         "https://github.com/" +
         std::string(REPOSITORY) +
@@ -132,7 +127,9 @@ void UpdaterClient::getLatestDownload(
 
     s_getHolder.spawn(
         req.get(url),
-        [callback, tempPath](web::WebResponse res) {
+        [callback, tempPath](
+            geode::utils::web::WebResponse res
+        ) {
             EmptyResponseDto dto;
 
             if (res.ok()) {
